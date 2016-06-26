@@ -43,7 +43,7 @@ fn main() {
 
 ---
 ## Thanks
-* To the [serial-rs](https://github.com/dcuddeback/serial-rs) team - who made this carte possible.
+* To the [serial-rs](https://github.com/dcuddeback/serial-rs) team - who made this crate possible.
 
 ---
 ## License
