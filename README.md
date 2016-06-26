@@ -21,7 +21,7 @@ Add `rzw` as a dependency in `Cargo.toml`:
 rzw = { git = "https://github.com/Roba1993/rzw" }
 ```
 
-Use the `rzw::Controller` as starting point to communicate, which communicates with the Z-Wave network.
+Use the `rzw::Controller` as starting point to communicate, with the Z-Wave network.
 ```rust
 extern crate rzw;
 
