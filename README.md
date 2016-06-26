@@ -17,7 +17,8 @@ Compiling the `rzw` crate requires Rust 1.9 or later.
 ## Usage
 Add `rzw` as a dependency in `Cargo.toml`:
 ```toml
- todo
+[dependencies]
+rand = { rzw = "https://github.com/Roba1993/rzw" }
 ```
 
 Use the `rzw::Controller` as starting point to communicate, which communicates with the Z-Wave network.
