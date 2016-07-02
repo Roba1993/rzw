@@ -2,12 +2,14 @@ use controller::Controller;
 use cmd_class::basic::Basic;
 use std::rc::Rc;
 use std::cell::RefCell;
-
+use num::FromPrimitive;
+use msg::{Message, Type, Function};
 
 // The private representation of a node
 struct _Node {
     id: u8,
     controller: Controller,
+    generic_type: GenericType,
     class_basic: Option<Basic>
 }
 
@@ -25,12 +27,34 @@ impl Node {
         let node = Node(Rc::new(RefCell::new(_Node {
             id: id,
             controller: contr,
+            generic_type: GenericType::Unknown,
             class_basic: None
         })));
 
+        node.discover_type();
         node.discover_classes();
 
         node
+    }
+
+    /// Sets the available type for this node
+    pub fn discover_type(&self) {
+        let mut this = &mut self.0.borrow_mut();
+
+        // create a new message
+        let msg = Message::new(Type::Request, Function::GetNodeProtocolInfo, vec!(this.id));
+
+        // send the message to the ZWave driver
+        let msg = unwrap_or_return!(this.controller.get_driver().write_and_read(msg).ok(), ());
+
+        //check if the answer has the right length && is no error
+        if msg.data.len() != 6 {
+            this.generic_type = GenericType::Unknown;
+            return;
+        }
+
+        // extract the delivered type
+        this.generic_type = GenericType::from_u8(msg.data[4]).unwrap_or(GenericType::Unknown);
     }
 
     /// Sets the available function classes for this node
@@ -57,4 +81,31 @@ impl Node {
     pub fn get_id(&self) -> u8 {
         self.0.borrow().id.clone()
     }
+
+    // returns the generic type of the node
+    pub fn get_generic_type(&self) -> GenericType {
+        self.0.borrow().generic_type.clone()
+    }
+}
+
+
+/// List of different Node types
+enum_from_primitive! {
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum GenericType {
+    Unknown = 0x00,
+    BasicController = 0x01,
+    StaticController = 0x02,
+    BasicSlave = 0x03,
+    RoutingSlave = 0x04,
+    GenericThermostat = 0x08,
+    BinarySwitch = 0x10,
+    MultiLevelSwitch = 0x11,
+    GenericSwitchRemote = 0x12,
+    GenericSwitchToggle = 0x13,
+    GenericSecurityPanel = 0x17,
+    BinarySensor = 0x20,
+    MultilevelSensor = 0x21,
+    Meter = 0x31,
+}
 }
