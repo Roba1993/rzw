@@ -1,9 +1,9 @@
 
 // ZWave generale message
-// `header, length, type(rx|tx), zw-function, data, checksum`
+// `header, length, type(rx|tx), zw-function, data, transmit-type, message-id, checksum`
 //
 // ZWave data structure for basic
-// `device, ?, comand class, command, value, ?``
+// `device, data-length, comand class, command, value`
 
 use num::FromPrimitive;
 use error::{Error, ErrorKind};
@@ -108,16 +108,20 @@ impl Message {
         buf
     }
 
-    /// return the message as string in hex format
-    pub fn get_hex(&self) -> String {
-        let dat = self.get_command();
+    /// Return a Vec<u8> into a String in a hex format.
+    pub fn to_hex(data: &Vec<u8>) -> String {
         let mut out = String::new();
 
-        for i in 0..dat.len() {
-            out.push_str(&*format!("{:#X} ", dat[i]));
+        for i in 0..data.len() {
+            out.push_str(&*format!("{:#X} ", data[i]));
         }
 
         out
+    }
+
+    /// return the message as string in hex format
+    pub fn get_hex(&self) -> String {
+        Message::to_hex(&self.get_command())
     }
 
     /// Returns the checksum for the given vector
@@ -231,8 +235,7 @@ pub enum Function {
     GetVirtualNodes = 0xa5,
     IsVirtualNode = 0xa6,
     SetPromiscuousMode = 0xd0,
-}
-}
+}}
 
 #[cfg(test)]
 mod tests {

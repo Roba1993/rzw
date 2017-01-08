@@ -21,6 +21,9 @@ pub enum ErrorKind {
     /// A unknown Z-Wave syntax was sent.
     UnknownZWave,
 
+    /// This functionallity is not implemented.
+    NotImplemented,
+
     /// An I/O error occured.
     ///
     /// The type of I/O error is determined by the inner `io::ErrorKind`.
@@ -72,6 +75,7 @@ impl From<Error> for io::Error {
             ErrorKind::NoController => io::ErrorKind::NotFound,
             ErrorKind::InvalidInput => io::ErrorKind::InvalidInput,
             ErrorKind::UnknownZWave => io::ErrorKind::InvalidData,
+            ErrorKind::NotImplemented => io::ErrorKind::Other,
             ErrorKind::Io(kind) => kind
         };
 

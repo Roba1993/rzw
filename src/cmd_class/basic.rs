@@ -33,7 +33,19 @@ impl Basic {
         let node = (self.0.borrow()).node.get_id();
 
         // create a new message
-        let msg = Message::new(Type::Request, Function::SendData, vec!(node, 0x03, 0x20, 0x01, value));
+        let msg = Message::new(Type::Request, Function::SendData, vec!(node, 0x03, 0x20, 0x01, value, 0x66));
+
+        // send the message to the ZWave driver
+        (self.0.borrow()).node.get_controller().get_driver().write_and_read(msg)
+    }
+
+    /// get a value on the node
+    pub fn get(&self) -> Result<Message, Error> {
+        // get the id of the node
+        let node = (self.0.borrow()).node.get_id();
+
+        // create a new message
+        let msg = Message::new(Type::Request, Function::SendData, vec!(node, 0x03, 0x20, 0x02));
 
         // send the message to the ZWave driver
         (self.0.borrow()).node.get_controller().get_driver().write_and_read(msg)

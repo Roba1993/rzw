@@ -41,6 +41,8 @@
 //! }
 //! ```
 
+// We create code lib code
+#![allow(dead_code)]
 
 // load all external dependencies, which are used
 #[macro_use]
@@ -52,11 +54,16 @@ extern crate serial;
 
 // load all internal dependencies, which are used
 pub mod error;
-pub mod msg;
 pub mod driver;
-pub mod cmd_class;
-pub mod node;
-pub mod controller;
 
-/// The controller, which connects to the Z-Wave network.
-pub use controller::Controller;
+// The following mod's are deactivated to enable the restructre of the crate
+
+//pub mod msg;
+//pub mod driver;
+//pub mod cmd_class;
+//pub mod node;
+//pub mod controller;
+
+
+// The controller, which connects to the Z-Wave network.
+//pub use controller::Controller;
