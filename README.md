@@ -1,3 +1,6 @@
+# Under heavy reconstruction
+Try on your own risk! - The example is outdated
+
 # Rusty Z-Wave
 
 The `rzw` crate provides a native functionality to control a Z-Wave network over a USB Z-Wave dongle. It's completely written in Rust to ensure safety and performance.
