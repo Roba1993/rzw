@@ -9,9 +9,6 @@
 
 extern crate rzw;
 
-use std::thread;
-use std::time::Duration;
-
 use rzw::driver::Driver;
 
 // edit here the path to your Z-Wave controller device
@@ -61,7 +58,7 @@ fn main() {
     thread::sleep(Duration::from_secs(3));
     println!("READ: {:?}", controller.get_driver().read());*/
 
-    let mut driver = rzw::driver::driver_serial::SerialDriver::new(&DEVICE).unwrap();
+    let mut driver = rzw::driver::serial::SerialDriver::new(&DEVICE).unwrap();
 
     println!("ID's {:?}", driver.get_node_ids());
     println!("TYPE {:?}", driver.get_node_generic_class(&0x01));

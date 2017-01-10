@@ -1,8 +1,5 @@
 // load the mods
-pub mod serial_driver;
-
-// link the driver into this namespace
-pub use self::serial_driver::SerialDriver;
+pub mod serial;
 
 // imports for the crate
 use error::Error;

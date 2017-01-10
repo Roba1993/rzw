@@ -1,83 +1,67 @@
-
-// ZWave generale message
-// `header, length, type(rx|tx), zw-function, data, transmit-type, message-id, checksum`
-//
-// ZWave data structure for basic
-// `device, data-length, comand class, command, value`
+//! The message represent a ZWave message which can be sent or received.
+//! To build up such a message use the following implementation.
+//!
+//! ```rust
+//! Message::new(0x02, CmdClass::BASIC, 0x01, vec!(0xFF));
+//! ```
+//!
+//! The structure of a ZWave message looks like the following:
+//!
+//! `device, data-length, comand class, command, value`
 
 use num::FromPrimitive;
 use error::{Error, ErrorKind};
 
 #[derive(Debug, Clone)]
 pub struct Message {
-    pub header: Header,
-    pub typ: Type,
-    pub func: Function,
+    pub node_id: u8,
+    pub cmd_class: CmdClass,
+    pub cmd: u8,
     pub data: Vec<u8>
 }
 
 impl Message {
     /// create a new message
-    pub fn new(typ: Type, func: Function, data: Vec<u8>) -> Message {
+    pub fn new(node_id: u8, cmd_class: CmdClass, cmd: u8, data: Vec<u8>) -> Message {
         Message {
-            header: Header::SOF,
-            typ: typ,
-            func: func,
+            node_id: node_id,
+            cmd_class: cmd_class,
+            cmd: cmd,
             data: data
-        }
-    }
-
-    // create a new message with only the header
-    pub fn new_header(header: Header) -> Message {
-        Message {
-            header: header,
-            typ: Type::Response,
-            func: Function::None,
-            data: vec!()
         }
     }
 
     /// Parse a `&[u8]` slice and try to convert it to a `Message`
     pub fn parse(data: &[u8]) -> Result<Message, Error> {
-        // check if the data has a header
+        // check if the data is avilable
         if data.len() < 1 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "No message delivered, at least a head is needed"));
+            return Err(Error::new(ErrorKind::UnknownZWave, "Message has no data"));
         }
 
-        // try to parse the header
-        let header = unwrap_or_return!(Header::from_u8(data[0]), Err(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave header detected")));
-
-        // return message if there is no start of frame header
-        if header != Header::SOF {
-            return Ok(Message::new_header(header));
+        // check if the data has enough entries
+        if data.len() < 4 {
+            return Err(Error::new(ErrorKind::UnknownZWave, "Message is to short"));
         }
 
-        // check if the message is long enough for a SOF message
-        if data.len() < 5 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Data is too short for a ZWave message with SOF header"));
+        // check if the length flag matches
+        if data.len() + 2 != data[1] as usize {
+            return Err(Error::new(ErrorKind::UnknownZWave, "The length of the message delivered didn't match with the actual length"));
         }
 
-        // check if the data is as long as the given length
-        if data[1] != (data.len() - 2) as u8 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "The length of the message defined in the ZWave message didn't match with the actual length"));
-        }
+        // get the node id
+        let node_id = data[0];
 
-        // check if the checksum is right for the message
-        if Message::checksum(&data[0 .. (data.len()-1)]) != data[data.len()-1] {
-            return Err(Error::new(ErrorKind::UnknownZWave, "The checksum didn't match to the message"));
-        }
+        // get the commadn class
+        let cmd_class = CmdClass::from_u8(data[2]).ok_or(Error::new(ErrorKind::UnknownZWave, "The ZWave Command Class is unknown"))?;
 
-        // try to parse the type
-        let typ = unwrap_or_return!(Type::from_u8(data[2]), Err(Error::new(ErrorKind::UnknownZWave, "Unknown message type")));
-
-        // try to parse the function
-        let function = unwrap_or_return!(Function::from_u8(data[3]), Err(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave function detected")));
+        // get the command
+        let cmd = data[3];
 
         // create the message data array
         let msg_data : &[u8];
         // when there is data extract it
-        if data.len() > 5 {
-            msg_data = &data[4 .. (data.len()-1)];
+        if data.len() > 4 {
+            msg_data = &data[3 .. (data.len()-1)];
         }
         // if not create a empty array
         else {
@@ -85,31 +69,24 @@ impl Message {
         }
 
         // create a new Message and return it
-        Ok(Message::new(typ, function, msg_data.to_vec()))
+        Ok(Message::new(node_id, cmd_class, cmd, msg_data.to_vec()))
     }
 
-    /// return the command as Vec<u8>
-    pub fn get_command(&self) -> Vec<u8> {
-        // only create a full command if the header defines it
-        if self.header != Header::SOF {
-            return vec![self.header as u8];
-        }
-
-        // create the header, length, typ and ZWave function
-        let mut buf: Vec<u8> = vec![self.header as u8, (self.data.len()+3) as u8, self.typ as u8, self.func as u8];
-
-        // append the data
-        buf.append(&mut self.data.clone());
-
-        // calc checksum
-        let cs = Message::checksum(&buf);
-        buf.push(cs);
-
-        buf
+    /// Return the message as Vec<u8>
+    pub fn to_vec(&self) -> Vec<u8> {
+        // todo check if there a better way
+        let mut v : Vec<u8> = Vec::new();
+        v.push(self.node_id);
+        v.push((self.data.len()+2) as u8);
+        v.push(self.cmd_class as u8);
+        v.push(self.cmd);
+        v.append(&mut self.data.clone());
+        v
     }
 
-    /// Return a Vec<u8> into a String in a hex format.
-    pub fn to_hex(data: &Vec<u8>) -> String {
+    /// Return the message as hex formated string.
+    pub fn to_hex_string(&self) -> String {
+        let data = self.to_vec();
         let mut out = String::new();
 
         for i in 0..data.len() {
@@ -118,150 +95,126 @@ impl Message {
 
         out
     }
-
-    /// return the message as string in hex format
-    pub fn get_hex(&self) -> String {
-        Message::to_hex(&self.get_command())
-    }
-
-    /// Returns the checksum for the given vector
-    pub fn checksum(data: &[u8]) -> u8 {
-        let mut ret : u8 = 0xFF;
-
-        for i in 1..data.len() {
-            ret ^= data[i];
-        }
-
-        ret
-    }
 }
 
-/// List of the ZWave start header
+/// List of the ZWave Command Classes
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Header {
-    SOF = 0x01, // Start of Frame
-    ACK = 0x06, // Message Accepted
-    NAK = 0x15, // Message not Accepted
-    CAN = 0x18, // Channel - Resend Request
+#[allow(non_camel_case_types)]
+pub enum CmdClass {
+    NO_OPERATION = 0x00,
+    NODE_INFO = 0x01,
+    REQUEST_NODE_INFO = 0x02,
+    ASSIGN_IDS = 0x03,
+    FIND_NODES_IN_RANGE = 0x04,
+    GET_NODES_IN_RANGE = 0x05,
+    RANGE_INFO = 0x06,
+    CMD_COMPLETE = 0x07,
+    TRANSFER_PRESENTATION = 0x08,
+    TRANSFER_NODE_INFO = 0x09,
+    TRANSFER_RANGE_INFO = 0x0A,
+    TRANSFER_END = 0x0B,
+    ASSIGN_RETURN_ROUTE = 0x0C,
+    NEW_NODE_REGISTERED = 0x0D,
+    NEW_RANGE_REGISTERED = 0x0E,
+    TRANSFER_NEW_PRIMARY_COMPLETE = 0x0F,
+    AUTOMATIC_CONTROLLER_UPDATE_START = 0x10,
+    SUC_NODE_ID = 0x11,
+    SET_SUC = 0x12,
+    SET_SUC_ACK = 0x13,
+    ASSIGN_SUC_RETURN_ROUTE = 0x14,
+    STATIC_ROUTE_REQUEST = 0x15,
+    LOST = 0x16,
+    ACCEPT_LOST = 0x17,
+    NOP_POWER = 0x18,
+    RESERVE_NODE_IDS = 0x19,
+    RESERVED_IDS = 0x1A,
+    // Unknown
+    BASIC = 0x20,
+    CONTROLLER_REPLICATION = 0x21,
+    APPLICATION_STATUS = 0x22,
+    ZIP_SERVICES = 0x23,
+    ZIP_SERVER = 0x24,
+    SWITCH_BINARY = 0x25,
+    SWITCH_MULTILEVEL = 0x26,
+    SWITCH_ALL = 0x27,
+    SWITCH_TOGGLE_BINARY = 0x28,
+    SWITCH_TOGGLE_MULTILEVEL = 0x29,
+    CHIMNEY_FAN = 0x2A,
+    SCENE_ACTIVATION = 0x2B,
+    SCENE_ACTUATOR_CONF = 0x2C,
+    SCENE_CONTROLLER_CONF = 0x2D,
+    ZIP_CLIENT = 0x2E,
+    ZIP_ADV_SERVICES = 0x2F,
+    SENSOR_BINARY = 0x30,
+    SENSOR_MULTILEVEL = 0x31,
+    METER = 0x32,
+    ZIP_ADV_SERVER = 0x33,
+    ZIP_ADV_CLIENT = 0x34,
+    METER_PULSE = 0x35,
+    METER_TBL_CONFIG = 0x3C,
+    METER_TBL_MONITOR = 0x3D,
+    METER_TBL_PUSH = 0x3E,
+    THERMOSTAT_HEATING = 0x38,
+    THERMOSTAT_MODE = 0x40,
+    THERMOSTAT_OPERATING_STATE = 0x42,
+    THERMOSTAT_SETPOINT = 0x43,
+    THERMOSTAT_FAN_MODE = 0x44,
+    THERMOSTAT_FAN_STATE = 0x45,
+    CLIMATE_CONTROL_SCHEDULE = 0x46,
+    THERMOSTAT_SETBACK = 0x47,
+    TARIF_CONFIG = 0x4A,
+    TARIF_TABLE_MONITOR = 0x4B,
+    COMMAND_CLASS_DOOR_LOCK_LOGGING = 0x4C,
+    SCHEDULE_ENTRY_LOCK = 0x4E,
+    ZIP_6LOWPAN = 0x4F,
+    BASIC_WINDOW_COVERING = 0x50,
+    MTP_WINDOW_COVERING = 0x51,
+    MULTI_INSTANCE = 0x60,
+    DOOR_LOCK = 0x62,
+    USER_CODE = 0x63,
+    CONFIGURATION = 0x70,
+    ALARM = 0x71,
+    MANUFACTURER_SPECIFIC = 0x72,
+    POWER_LEVEL = 0x73,
+    PROTECTION = 0x75,
+    LOCK = 0x76,
+    NODE_NAMING = 0x77,
+    FIRMWARE_UPDATE_MD = 0x7A,
+    GROUPING_NAME = 0x7B,
+    REMOTE_ASSOCIATION_ACTIVATE = 0x7C,
+    REMOTE_ASSOCIATION = 0x7D,
+    BATTERY = 0x80,
+    CLOCK = 0x81,
+    HAIL = 0x82,
+    WAKE_UP = 0x84,
+    ASSOCIATION = 0x85,
+    VERSION = 0x86,
+    INDICATOR = 0x87,
+    PROPRIETARY = 0x88,
+    LANGUAGE = 0x89,
+    TIME = 0x8A,
+    TIME_PARAMETERS = 0x8B,
+    GEOGRAPHIC_LOCATION = 0x8C,
+    COMPOSITE = 0x8D,
+    MULTI_INSTANCE_ASSOCIATION = 0x8E,
+    MULTI_CMD = 0x8F,
+    ENERGY_PRODUCTION = 0x90,
+    MANUFACTURER_PROPRIETARY = 0x91,
+    SCREEN_MD = 0x92,
+    SCREEN_ATTRIBUTES = 0x93,
+    SIMPLE_AV_CONTROL = 0x94,
+    AV_CONTENT_DIRECTORY_MD = 0x95,
+    AV_RENDERER_STATUS = 0x96,
+    AV_CONTENT_SEARCH_MD = 0x97,
+    SECURITY = 0x98,
+    AV_TAGGING_MD = 0x99,
+    IP_CONFIGURATION = 0x9A,
+    ASSOCIATION_COMMAND_CONFIGURATION = 0x9B,
+    SENSOR_ALARM = 0x9C,
+    SILENCE_ALARM = 0x9D,
+    SENSOR_CONFIGURATION = 0x9E,
+    MARK = 0xEF,
+    NON_INTEROPERABLE = 0xF0,
 }
-}
-
-/// List of different ZWave command types (rx/tx)
-enum_from_primitive! {
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Type {
-    Request = 0x00,
-    Response = 0x01,
-}
-}
-
-/// List of all available ZWave functions
-enum_from_primitive! {
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Function {
-    None = 0x00,
-    DiscoveryNodes = 0x02,
-    SerialApiApplNodeInformation = 0x03,
-    ApplicationCommandHandler = 0x04,
-    GetControllerCapabilities = 0x05,
-    SerialApiSetTimeouts = 0x06,
-    SerialGetCapabilities = 0x07,
-    SerialApiSoftReset = 0x08,
-    SetRFReceiveMode = 0x10,
-    SetSleepMode = 0x11,
-    SendNodeInformation = 0x12,
-    SendData = 0x13,
-    SendDataMulti = 0x14,
-    GetVersion = 0x15,
-    SendDataAbort = 0x16,
-    RFPowerLevelSet = 0x17,
-    SendDataMeta = 0x18,
-    MemoryGetId = 0x20,
-    MemoryGetByte = 0x21,
-    MemoryPutByte = 0x22,
-    MemoryGetBuffer = 0x23, // todo recheck
-    MemoryPutBuffer = 0x24,
-    // ReadMemory = 0x23, todo recheck
-    ClockSet = 0x30,
-    ClockGet = 0x31,
-    ClockCompare = 0x32,
-    RtcTimerCreate = 0x33,
-    RtcTimerRead = 0x34,
-    RtcTimerDelete = 0x35,
-    RtcTimerCall = 0x36,
-    GetNodeProtocolInfo = 0x41,
-    SetDefault = 0x42,
-    ReplicationCommandComplete = 0x44,
-    ReplicationSendData = 0x45,
-    AssignReturnRoute = 0x46,
-    DeleteReturnRoute = 0x47,
-    RequestNodeNeighborUpdate = 0x48,
-    ApplicationUpdate = 0x49,
-    AddNodeToNetwork = 0x4a,
-    RemoveNodeFromNetwork = 0x4b,
-    CreateNewPrimary = 0x4c,
-    ControllerChange = 0x4d,
-    SetLearnMode = 0x50,
-    AssignSucReturnRoute = 0x51,
-    EnableSuc = 0x52,
-    RequestNetworkUpdate = 0x53,
-    SetSucNodeId = 0x54,
-    DeleteSucReturnRoute = 0x55,
-    GetSucNodeId = 0x56,
-    SendSucId = 0x57,
-    RediscoveryNeeded = 0x59,
-    RequestNodeInfo = 0x60,
-    RemoveFailedNodeId = 0x61,
-    IsFailedNode = 0x62,
-    ReplaceFailedNode = 0x63,
-    TimerStart = 0x70,
-    TimerRestart = 0x71,
-    TimerCancel = 0x72,
-    TimerCall = 0x73,
-    GetRoutingTableLine = 0x80,
-    GetTXCounter = 0x81,
-    ResetTXCounter = 0x82,
-    StoreNodeInfo = 0x83,
-    StoreHomeId = 0x84,
-    LockRouteResponse = 0x90,
-    SendDataRouteDemo = 0x91,
-    SerialApiTest = 0x95,
-    SerialApiSlaveNodeInfo = 0xa0,
-    ApplicationSlaveCommandHandler = 0xa1,
-    SendSlaveNodeInfo = 0xa2,
-    SendSlaveData = 0xa3,
-    SetSlaveLearnMode = 0xa4,
-    GetVirtualNodes = 0xa5,
-    IsVirtualNode = 0xa6,
-    SetPromiscuousMode = 0xd0,
-}}
-
-#[cfg(test)]
-mod tests {
-    use msg::Message;
-    use error::Error;
-
-    /// Test the parsing functionality
-    #[test]
-    fn msg_parse() {
-        assert!(Message::parse(&[0; 0]).is_err());
-        assert!(Message::parse(&[0xFF]).is_err());
-        assert!(Message::parse(&[0x01]).is_err());
-        assert!(Message::parse(&[0x1, 0x2, 0x0, 0xFD]).is_err());
-        assert!(Message::parse(&[0x1, 0x7, 0x0, 0x13, 0x2, 0x3, 0x20, 0x1, 0x0, 0xC4]).is_err());
-        assert!(Message::parse(&[0x1, 0x8, 0x0, 0x13, 0x2, 0x3, 0x20, 0x1, 0x0, 0xC5]).is_err());
-
-        assert!(Message::parse(&[0x06]).is_ok());
-        assert!(Message::parse(&[0x01, 0x03, 0x00, 0x13, 0xEF]).is_ok());
-        assert!(Message::parse(&[0x1, 0x04, 0x01, 0x13, 0x01, 0xE8]).is_ok());
-        assert!(Message::parse(&[0x1, 0x8, 0x0, 0x13, 0x2, 0x3, 0x20, 0x1, 0x0, 0xC4]).is_ok());
-    }
-
-    /// Test for the checksum functionality
-    #[test]
-    fn checksum() {
-        assert!(Message::checksum(&[0x01, 0x03, 0x20]) == 0xDC);
-        assert!(Message::checksum(&[0x1, 0x8, 0x0, 0x13, 0x2, 0x3, 0x20, 0x1, 0x0]) == 0xC4);
-    }
 }
