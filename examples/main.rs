@@ -64,7 +64,7 @@ fn main() {
     println!("TYPE {:?}", driver.get_node_generic_class(&0x01));
 
 
-    let m = vec!(0x02, 0x03, 0x20, 0x01, 0x00);
+    let m = vec!(0x04, 0x03, 0x20, 0x01, 0x01);
     let id = driver.write(m).unwrap();
     println!("M_ID {:?}", id);
 

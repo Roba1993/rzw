@@ -208,7 +208,7 @@ impl Driver for SerialDriver {
         let mut message = message.clone();
 
         // Add the sent type to the message
-        message.push(0x10);
+        message.push(SerialTransmissionType::AutoRoute as u8);
 
         // get the next message id
         let m_id = self.get_next_msg_id();
@@ -511,6 +511,18 @@ enum_from_primitive! {
 pub enum SerialMsgType {
     Request = 0x00,
     Response = 0x01,
+}
+}
+
+/// List of different ZWave transmission types
+enum_from_primitive! {
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SerialTransmissionType {
+    ACK = 0x01,
+    LowPower = 0x02,
+    AutoRoute = 0x04,
+    Explore = 0x20,
+    Direct = 0x25,
 }
 }
 
