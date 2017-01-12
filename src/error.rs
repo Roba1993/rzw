@@ -1,3 +1,7 @@
+//! rzw specific error types
+//!
+//! These error type is compatible with the rust standard io `ErrorKind`.
+
 use std::io;
 use std::fmt;
 use std::error::Error as StdError;

@@ -20,11 +20,13 @@
 //!
 //! ## Usage
 //! Add `rzw` as a dependency in `Cargo.toml`:
+//!
 //! ```toml
 //!  todo
 //! ```
 //!
 //! Use the `rzw::Controller` as starting point to communicate, which communicates with the Z-Wave network.
+//!
 //! ```rust
 //! extern crate rzw;
 //!
@@ -58,7 +60,8 @@ extern crate serial;
 // load all internal dependencies, which are used
 pub mod error;
 pub mod driver;
-pub mod msg;
+pub mod cc;
+pub mod basic;
 
 // The following mod's are deactivated to enable the restructre of the crate
 

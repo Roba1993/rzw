@@ -60,13 +60,21 @@ fn main() {
 
     let mut driver = rzw::driver::serial::SerialDriver::new(&DEVICE).unwrap();
 
-    println!("ID's {:?}", driver.get_node_ids());
-    println!("TYPE {:?}", driver.get_node_generic_class(&0x01));
+    //println!("ID's {:?}", driver.get_node_ids());
+    //println!("TYPE {:?}", driver.get_node_generic_class(&0x01));
 
 
-    let m = vec!(0x04, 0x03, 0x20, 0x01, 0x01);
+    let m = vec!(0x02, 0x03, 0x20, 0x02);
     let id = driver.write(m).unwrap();
-    println!("M_ID {:?}", id);
-
     println!("RECV {:?}", driver.read(&id));
+
+    let id = driver.write(rzw::cc::basic::get(0x02).to_vec()).unwrap();
+    println!("RECV {:?}", rzw::cc::msg::Message::parse(&driver.read(&0).unwrap()));
+    println!("RECV {:?}", driver.read(&0));
+    println!("RECV {:?}", driver.read(&0));
+
+
+    println!("{:?}", driver.get_messages());
+
+    rzw::basic::Controller::new(driver);
 }

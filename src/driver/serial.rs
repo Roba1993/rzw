@@ -179,9 +179,18 @@ impl SerialDriver {
                 },
                 // store the message to the table
                 Ok(m) => {
-                    if m.header == SerialMsgHeader::SOF && m.func == SerialMsgFunction::SendData && m.data.len() >= 1 {
+                    // Can't handle this data type right now - needs a recheck
+                    if m.header == SerialMsgHeader::SOF && m.typ == SerialMsgType::Request &&
+                            m.func == SerialMsgFunction::SendData && m.data[1] == 0 && m.data[2] == 0 {
+                        continue;
+                    }
+                    // save incoming messages sorted for the device the message is sent to
+                    if m.header == SerialMsgHeader::SOF && m.data.len() >= 1 {
+                        // clone msg to use it
+                        let mut m = m.clone();
+
                         // update a msg, guarding against the key possibly not being set
-                        let stat = self.messages.entry(m.data.get(0).unwrap().clone()).or_insert(Vec::new());
+                        let stat = self.messages.entry(m.data.remove(0)).or_insert(Vec::new());
                         stat.push(m);
                     }
                 }
@@ -196,6 +205,11 @@ impl SerialDriver {
         } else {
             false
         }
+    }
+
+    /// Return a copy the message stack
+    pub fn get_messages(&self) -> HashMap<u8, Vec<SerialMsg>> {
+        self.messages.clone()
     }
 }
 
@@ -260,11 +274,11 @@ impl Driver for SerialDriver {
         // read all messages to clean the driver pipe
         self.read_all_msg()?;
 
-        //
+        // get the message from the map
         match self.messages.get_mut(id) {
             Some(m) => {
                 if m.len() >= 1 {
-                    return Ok(m.remove(0).get_command());
+                    return Ok(m.remove(0).data);
                 }
                 return Err(Error::new(ErrorKind::Io(StdErrorKind::Other), "No message with the given id received"));
             },

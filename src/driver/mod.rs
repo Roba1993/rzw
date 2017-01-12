@@ -1,3 +1,12 @@
+//! ZWave driver - bottom layer
+//!
+//! The drivers building up the foundation of this crate. They provide
+//! a common interface over all the different ZWave controller.
+//!
+//! This is layer can be used directly, even when it's not proposed.
+//! Try to use the mid or top layer for an easier access to the ZWave
+//! functionalities.
+
 // load the mods
 pub mod serial;
 
