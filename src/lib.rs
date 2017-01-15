@@ -51,8 +51,6 @@
 
 // load all external dependencies, which are used
 #[macro_use]
-extern crate mac;
-#[macro_use]
 extern crate enum_primitive;
 extern crate num;
 extern crate serial;

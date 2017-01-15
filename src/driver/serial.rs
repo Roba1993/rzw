@@ -417,7 +417,7 @@ impl SerialMsg {
         }
 
         // try to parse the header
-        let header = unwrap_or_return!(SerialMsgHeader::from_u8(data[0]), Err(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave header detected")));
+        let header = SerialMsgHeader::from_u8(data[0]).ok_or(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave header detected"))?;
 
         // return message if there is no start of frame header
         if header != SerialMsgHeader::SOF {
@@ -440,10 +440,10 @@ impl SerialMsg {
         }
 
         // try to parse the type
-        let typ = unwrap_or_return!(SerialMsgType::from_u8(data[2]), Err(Error::new(ErrorKind::UnknownZWave, "Unknown message type")));
+        let typ = SerialMsgType::from_u8(data[2]).ok_or(Error::new(ErrorKind::UnknownZWave, "Unknown message type"))?;
 
         // try to parse the function
-        let function = unwrap_or_return!(SerialMsgFunction::from_u8(data[3]), Err(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave function detected")));
+        let function = SerialMsgFunction::from_u8(data[3]).ok_or(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave function detected"))?;
 
         // create the message data array
         let msg_data : &[u8];
