@@ -12,7 +12,7 @@ use std::io::{Write, Read};
 use std::time::Duration;
 use driver::{Driver, GenericType};
 use std::io::ErrorKind as StdErrorKind;
-use std::collections::HashMap;
+use std::fmt;
 
 pub struct SerialDriver {
     // serial port
@@ -20,7 +20,9 @@ pub struct SerialDriver {
     // message id counter
     message_id: u8,
     // message store
-    messages: Vec<SerialMsg>
+    messages: Vec<SerialMsg>,
+    // serial driver path
+    path: String
 }
 
 impl SerialDriver {
@@ -48,6 +50,7 @@ impl SerialDriver {
             port: port,
             message_id: 0x00,
             messages: vec!(),
+            path: path.to_string()
         };
 
         // return it
@@ -186,11 +189,8 @@ impl SerialDriver {
                     }
                     // save incoming messages sorted for the device the message is sent to
                     if m.header == SerialMsgHeader::SOF && m.data.len() >= 1 {
-                        // clone msg to use it
-                        let mut m = m.clone();
-
                         // push the message to the stack
-                        self.messages.push(m);
+                        self.messages.push(m.clone());
                     }
                 }
             }
@@ -373,6 +373,12 @@ impl Driver for SerialDriver {
 
         // extract the delivered type and return it
         Ok(GenericType::from_u8(data[4]).unwrap_or(GenericType::Unknown))
+    }
+}
+
+impl fmt::Debug for SerialDriver {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Z-Wave Driver {{path: {}}}", self.path)
     }
 }
 

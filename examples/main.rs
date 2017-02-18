@@ -24,24 +24,15 @@ fn main() {
 
     let mut driver = rzw::driver::serial::SerialDriver::new(&DEVICE).unwrap();
 
-    let m = vec!(0x03, 0x03, 0x20, 0x01, 0xff);
-    let id = driver.write(m).unwrap();
-    println!("RECV {:?}", driver.read());
-    println!("RECV {:?}", driver.read());
+    println!("SEND {:?}", driver.write(vec!(0x03, 0x03, 0x20, 0x01, 0x00)));
     println!("RECV {:?}", driver.read());
     println!("RECV {:?}", driver.read());
 
-    let id = driver.write(rzw::cmds::basic::get(0x03)).unwrap();
-    //println!("RECV {:?}", rzw::cmds::Message::parse(&driver.read(&id).unwrap()));
-    println!("RECV {:?}", driver.read());
-    println!("RECV {:?}", driver.read());
-    println!("RECV {:?}", driver.read());
+    driver.write(rzw::cmds::basic::get(0x03)).unwrap();
+    println!("RECV {:?}", rzw::cmds::Message::parse(&driver.read().unwrap()));
     println!("RECV {:?}", driver.read());
 
 
-    //println!("{:?}", driver.get_messages());
-
-    use rzw::error::Error;
     let mut zwave = rzw::basic::Controller::new(driver).unwrap();
     zwave.node(3);
 
