@@ -17,21 +17,20 @@ use error::Error;
 /// for a driver implementation. A driver provides the access
 /// to the Z-Wave network.
 pub trait Driver {
-    /// Write data to the Z-Wave network. Return the id of
-    /// the sended message or an error.
-    fn write<M>(&mut self, M) -> Result<u8, Error>
-        where M: Into<Vec<u8>>;
+    /// Write data to the Z-Wave network.
+    fn write<N>(&mut self, N) -> Result<u8, Error>
+        where N: Into<Vec<u8>>;
 
-    /// Read data from the Z-Wave network for the defined id.
-    /// The id '0' is the placeholder fro message with no id's.
+    /// Read data from the Z-Wave network.
     /// Returns the received message or an error.
-    fn read(&mut self, &u8) -> Result<Vec<u8>, Error>;
+    fn read(&mut self) -> Result<Vec<u8>, Error>;
 
     /// Returns the id of the registered nodes in the Z-Wave network.
     fn get_node_ids(&mut self) -> Result<Vec<u8>, Error>;
 
     /// Returns the generic type of a node.
-    fn get_node_generic_class(&mut self, &u8) -> Result<GenericType, Error>;
+    fn get_node_generic_class<N>(&mut self, N) -> Result<GenericType, Error>
+        where N: Into<u8>;
 }
 
 

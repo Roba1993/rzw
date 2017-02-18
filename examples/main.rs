@@ -22,56 +22,21 @@ fn main() {
         return;
     }
 
-    // create a new controller
-    //let controller = rzw::Controller::new(&DEVICE).unwrap();
-
-    // get all nodes
-    //let nodes = controller.get_nodes();
-
-    // loop over the nodes
-    /*for node in nodes {
-        // set the basic value on all nodes
-        // for binary switch this means, turn them on
-        println!("SEND: {:?}", node.get_basic().unwrap().set(0x01));
-        //println!("GET: {:?}", node.get_basic().unwrap().get());
-        println!("READ: {:?}", controller.get_driver().read());
-        //println!("GET: {:?}", node.get_basic().unwrap().get());
-        thread::sleep(Duration::from_secs(3));
-        println!("READ: {:?}", controller.get_driver().read());
-        thread::sleep(Duration::from_secs(3));
-        println!("READ: {:?}", controller.get_driver().read());
-        println!("");
-    }*/
-
-    /*use rzw::msg::{Message, Type, Function};
-
-    // clear from before
-    thread::sleep(Duration::from_secs(1));
-    println!("READ: {:?}", controller.get_driver().read());
-
-    // create the write command and send it
-    let msg = Message::new(Type::Request, Function::SendData, vec!(nodes.get(0).unwrap().get_id(), 0x03, 0x20, 0x01, 0x01, 0x25, 0x66));
-    println!("SEND: {:?}", msg);
-    println!("RECV: {:?}", controller.get_driver().write(msg));
-    println!("READ: {:?}", controller.get_driver().read());
-    println!("READ: {:?}", controller.get_driver().read());
-    thread::sleep(Duration::from_secs(3));
-    println!("READ: {:?}", controller.get_driver().read());*/
-
     let mut driver = rzw::driver::serial::SerialDriver::new(&DEVICE).unwrap();
 
-    //println!("ID's {:?}", driver.get_node_ids());
-    //println!("TYPE {:?}", driver.get_node_generic_class(&0x01));
-
-
-    let m = vec!(0x02, 0x03, 0x20, 0x02);
+    let m = vec!(0x03, 0x03, 0x20, 0x01, 0xff);
     let id = driver.write(m).unwrap();
-    println!("RECV {:?}", driver.read(&id));
+    println!("RECV {:?}", driver.read());
+    println!("RECV {:?}", driver.read());
+    println!("RECV {:?}", driver.read());
+    println!("RECV {:?}", driver.read());
 
     let id = driver.write(rzw::cmds::basic::get(0x03)).unwrap();
-    println!("RECV {:?}", rzw::cmds::Message::parse(&driver.read(&0).unwrap()));
-    println!("RECV {:?}", driver.read(&0));
-    println!("RECV {:?}", driver.read(&0));
+    //println!("RECV {:?}", rzw::cmds::Message::parse(&driver.read(&id).unwrap()));
+    println!("RECV {:?}", driver.read());
+    println!("RECV {:?}", driver.read());
+    println!("RECV {:?}", driver.read());
+    println!("RECV {:?}", driver.read());
 
 
     //println!("{:?}", driver.get_messages());

@@ -108,7 +108,7 @@ impl<D> Node<D> where D: Driver {
     /// Sets the available type for this node
     pub fn discover_type(&mut self) -> Result<(), Error> {
         // set the genreic type for this node
-        self.generic_type = self.driver.borrow_mut().get_node_generic_class(&self.id)?;
+        self.generic_type = self.driver.borrow_mut().get_node_generic_class(self.id)?;
 
         Ok(())
     }

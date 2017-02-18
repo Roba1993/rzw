@@ -20,7 +20,7 @@ pub struct SerialDriver {
     // message id counter
     message_id: u8,
     // message store
-    messages: HashMap<u8, Vec<SerialMsg>>
+    messages: Vec<SerialMsg>
 }
 
 impl SerialDriver {
@@ -47,7 +47,7 @@ impl SerialDriver {
         let driver = SerialDriver {
             port: port,
             message_id: 0x00,
-            messages: HashMap::new(),
+            messages: vec!(),
         };
 
         // return it
@@ -189,9 +189,8 @@ impl SerialDriver {
                         // clone msg to use it
                         let mut m = m.clone();
 
-                        // update a msg, guarding against the key possibly not being set
-                        let stat = self.messages.entry(m.data.remove(0)).or_insert(Vec::new());
-                        stat.push(m);
+                        // push the message to the stack
+                        self.messages.push(m);
                     }
                 }
             }
@@ -208,7 +207,7 @@ impl SerialDriver {
     }
 
     /// Return a copy the message stack
-    pub fn get_messages(&self) -> HashMap<u8, Vec<SerialMsg>> {
+    pub fn get_messages(&self) -> Vec<SerialMsg> {
         self.messages.clone()
     }
 }
@@ -271,22 +270,17 @@ impl Driver for SerialDriver {
         Ok(m_id)
     }
 
-    fn read(&mut self, id: &u8) -> Result<Vec<u8>, Error> {
+    fn read(&mut self) -> Result<Vec<u8>, Error> {
         // read all messages to clean the driver pipe
         self.read_all_msg()?;
 
-        // get the message from the map
-        match self.messages.get_mut(id) {
-            Some(m) => {
-                if m.len() >= 1 {
-                    return Ok(m.remove(0).data);
-                }
-                return Err(Error::new(ErrorKind::Io(StdErrorKind::Other), "No message with the given id received"));
-            },
-            None => {
-                return Err(Error::new(ErrorKind::Io(StdErrorKind::Other), "No message with the given id received"));
-            }
+        // check if a message is available
+        if self.messages.len() < 1 {
+            return Err(Error::new(ErrorKind::Io(StdErrorKind::Other), "No message with the given id received"));
         }
+
+        // return the first message
+        Ok(self.messages.remove(0).data)
     }
 
     fn get_node_ids(&mut self) -> Result<Vec<u8>, Error> {
@@ -343,12 +337,13 @@ impl Driver for SerialDriver {
         Ok(nodes)
     }
 
-    fn get_node_generic_class(&mut self, node_id: &u8) -> Result<GenericType, Error> {
+    fn get_node_generic_class<N>(&mut self, node_id: N) -> Result<GenericType, Error>
+        where N: Into<u8> {
         // read all messages to clean the driver pipe
         self.read_all_msg()?;
 
         // create the serial message
-        let msg = SerialMsg::new(SerialMsgType::Request, SerialMsgFunction::GetNodeProtocolInfo, vec!(node_id.clone()));
+        let msg = SerialMsg::new(SerialMsgType::Request, SerialMsgFunction::GetNodeProtocolInfo, vec!(node_id.into()));
 
         // send the value
         self.port.write(msg.get_command().as_slice())?;
