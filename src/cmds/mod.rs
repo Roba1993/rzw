@@ -9,6 +9,8 @@
 //! If the full control over the devices and is required, take this layer.
 
 pub mod basic;
+pub mod info;
+
 
 /// List of the ZWave Command Classes
 enum_from_primitive! {

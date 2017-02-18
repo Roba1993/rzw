@@ -61,13 +61,17 @@ pub mod driver;
 pub mod cmds;
 pub mod basic;
 
-// The following mod's are deactivated to enable the restructre of the crate
+// lead mods which are used
+use driver::serial::SerialDriver;
+use basic::Controller;
+use error::Error;
 
-//pub mod driver;
-//pub mod cmd_class;
-//pub mod node;
-//pub mod controller;
+/// Function to start a Z-Wave Controller
+pub fn open<P>(path: P) -> Result<Controller<SerialDriver>, Error>
+    where P: Into<String> {
+    // Generate a new Serial driver
+    let driver = SerialDriver::new(path.into())?;
 
-
-// The controller, which connects to the Z-Wave network.
-//pub use controller::Controller;
+    // Generate a new controller and return it
+    Controller::new(driver)
+}

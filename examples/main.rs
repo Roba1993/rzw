@@ -9,7 +9,11 @@
 
 extern crate rzw;
 
+extern crate enum_primitive;
+
 use rzw::driver::Driver;
+
+use enum_primitive::FromPrimitive;
 
 // edit here the path to your Z-Wave controller device
 static DEVICE: &'static str = "/dev/tty.usbmodem1421";
@@ -22,22 +26,21 @@ fn main() {
         return;
     }
 
-    let mut driver = rzw::driver::serial::SerialDriver::new(&DEVICE).unwrap();
+    // open a zwave controller
+    let zwave = rzw::open(DEVICE);
+
+
+    /*
+    Test's -> need access to driver over the controller
 
     println!("SEND {:?}", driver.write(vec!(0x03, 0x03, 0x20, 0x01, 0x00)));
-    println!("RECV {:?}", driver.read());
-    println!("RECV {:?}", driver.read());
 
-    driver.write(rzw::cmds::basic::get(0x03)).unwrap();
-    println!("RECV {:?}", rzw::cmds::Message::parse(&driver.read().unwrap()));
+    println!("SEND {:?}", driver.write(rzw::cmds::basic::get(0x03)));
+    //println!("RECV {:?}", rzw::cmds::Message::parse(&driver.read().unwrap()));
     println!("RECV {:?}", driver.read());
 
+    println!("SEND {:?}", driver.write(rzw::cmds::info::get(0x03)));
+    let m = driver.read().unwrap();
+    println!("{:?}", rzw::cmds::info::parse(m));*/
 
-    let mut zwave = rzw::basic::Controller::new(driver).unwrap();
-    zwave.node(3);
-
-
-
-    //let zwave = open("zwave/path");
-    //zwave.node(3).map(|n| n.basic_set(1));
 }

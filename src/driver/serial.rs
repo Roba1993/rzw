@@ -28,9 +28,13 @@ pub struct SerialDriver {
 impl SerialDriver {
     /// Creates a new SerialDriver which is a connection point to
     /// ZWave device & network.
-    pub fn new(path: &str) -> Result<SerialDriver, Error> {
+    pub fn new<P>(path: P) -> Result<SerialDriver, Error>
+        where P: Into<String> {
+        // get the path
+        let path = path.into();
+
         // try to open the serial port
-        let mut port = try!(serial::open(path));
+        let mut port = try!(serial::open(&path));
 
         // set the settings
         try!(port.reconfigure(&|settings| {
@@ -50,7 +54,7 @@ impl SerialDriver {
             port: port,
             message_id: 0x00,
             messages: vec!(),
-            path: path.to_string()
+            path: path
         };
 
         // return it

@@ -10,13 +10,12 @@
 
 
 use driver::{Driver, GenericType};
+use cmds::{CmdClass, info};
+use error::Error;
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use cmds::CmdClass;
 use std::clone::Clone;
-
-use error::Error;
 
 #[derive(Debug, Clone)]
 pub struct Controller<D> where D: Driver {
@@ -81,8 +80,8 @@ impl<D> Controller<D> where D: Driver {
 pub struct Node<D> where D: Driver {
     driver: Rc<RefCell<D>>,
     id: u8,
-    generic_type: GenericType,
-    class_basic: Option<CmdClass>
+    types: Vec<GenericType>,
+    cmds: Vec<CmdClass>
 }
 
 impl<D> Node<D> where D: Driver {
@@ -91,34 +90,32 @@ impl<D> Node<D> where D: Driver {
         let mut node = Node {
             driver: driver,
             id: id,
-            generic_type: GenericType::Unknown,
-            class_basic: None
+            types: vec!(),
+            cmds: vec!()
         };
 
-        // we need to handle to spress the warning,
-        // wiich can't be deactivated until today
-        if node.discover_type().is_err() {
-            node.generic_type = GenericType::Unknown;
-        }
-        node.discover_classes();
+        // update the node information
+        node.update_node_info().is_ok();
 
         node
     }
 
-    /// Sets the available type for this node
-    pub fn discover_type(&mut self) -> Result<(), Error> {
-        // set the genreic type for this node
-        self.generic_type = self.driver.borrow_mut().get_node_generic_class(self.id)?;
+    /// Updates the information of the node
+    pub fn update_node_info(&mut self) -> Result<(), Error> {
+        // Send the command
+        self.driver.borrow_mut().write(info::get(self.id))?;
+
+        // Receive the result
+        let msg = self.driver.borrow_mut().read()?;
+
+        // convert it
+        let (types, cmds) = info::parse(msg)?;
+
+        self.types = types;
+        self.cmds = cmds;
+        self.cmds.push(CmdClass::BASIC);
 
         Ok(())
-    }
-
-    /// Sets the available function classes for this node
-    pub fn discover_classes(&self) {
-        // todo get the information from the device
-
-        // basic is always available
-        //this.class_basic = Some(Basic::new(self.clone()));
     }
 
     // get the node id
@@ -134,8 +131,8 @@ impl<D> Clone for Node<D> where D: Driver {
         Node {
             driver: self.driver.clone(),
             id: self.id,
-            generic_type: self.generic_type,
-            class_basic: self.class_basic
+            types: self.types.clone(),
+            cmds: self.cmds.clone()
         }
     }
 }
