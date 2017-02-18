@@ -19,7 +19,8 @@ use error::Error;
 pub trait Driver {
     /// Write data to the Z-Wave network. Return the id of
     /// the sended message or an error.
-    fn write(&mut self, Vec<u8>) -> Result<u8, Error>;
+    fn write<M>(&mut self, M) -> Result<u8, Error>
+        where M: Into<Vec<u8>>;
 
     /// Read data from the Z-Wave network for the defined id.
     /// The id '0' is the placeholder fro message with no id's.

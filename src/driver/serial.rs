@@ -214,12 +214,13 @@ impl SerialDriver {
 }
 
 impl Driver for SerialDriver {
-    fn write(&mut self, message: Vec<u8>) -> Result<u8, Error> {
+    fn write<M>(&mut self, message: M) -> Result<u8, Error>
+        where M: Into<Vec<u8>> {
         // read all messages to clean the driver pipe
         self.read_all_msg()?;
 
-        // copy the message and make them cloneable
-        let mut message = message.clone();
+        // get the message from into
+        let mut message = message.into();
 
         // Add the sent type to the message
         message.push(SerialTransmissionType::AutoRoute as u8);

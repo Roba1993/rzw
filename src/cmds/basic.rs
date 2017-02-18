@@ -1,5 +1,5 @@
-use cc::CmdClass;
-use cc::msg::Message;
+use cmds::CmdClass;
+use cmds::Message;
 
 /// List of the Basic class functions
 enum_from_primitive! {

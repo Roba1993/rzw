@@ -13,71 +13,40 @@ use driver::{Driver, GenericType};
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use cc::CmdClass;
+use cmds::CmdClass;
+use std::clone::Clone;
 
 use error::Error;
 
-/************************** Controller Area *********************/
-
-/// The private representation of a controller
-struct _Controller<D> where D: Driver+Clone {
-    driver: D,
-    nodes: Vec<Node<D>>,
+#[derive(Debug, Clone)]
+pub struct Controller<D> where D: Driver {
+    driver: Rc<RefCell<D>>,
+    nodes: Rc<RefCell<Vec<Node<D>>>>
 }
 
-// reference type for the controller
-type ControllerRef<D> = Rc<RefCell<_Controller<D>>>;
+impl<D> Controller<D> where D: Driver {
 
-// The public representation of a controller, with some syntactic sugar.
-pub struct Controller<D>(ControllerRef<D>) where D: Driver+Clone;
-
-// The actual controller implementation
-impl<D> Controller<D> where D: Driver+Clone {
-    /// Creates a new controller
+    /// Generate a new Controller to interface with the z-wave network.
     pub fn new(driver: D) -> Result<Controller<D>, Error> {
-        let controller = Controller(Rc::new(RefCell::new(_Controller {
-            driver: driver,
-            nodes: vec!()
-        })));
+        let controller = Controller {
+            driver: Rc::new(RefCell::new(driver)),
+            nodes: Rc::new(RefCell::new(vec!()))
+        };
 
-        // discover nodes automaically
         controller.discover_nodes()?;
 
         Ok(controller)
     }
 
-    /// Refresh the complete node list
-    pub fn discover_nodes(&self) -> Result<(), Error> {
-        // clear the existing nodes
-        self.0.borrow_mut().nodes.clear();
-
-        // write out the descovery node command and receive the answer
-        let res = self.0.borrow_mut().driver.get_node_ids()?;
-
-        // create a node object for each id
-        for i in res {
-            // create the node for the given id
-            let n = Node::new(self.clone(), i as u8);
-            // add it !!! need 2 steps to prevent collition with borrow
-            self.0.borrow_mut().nodes.push(n);
-        }
-
-        // when everything went well, return no error
-        Ok(())
-    }
-
-    /// Returns a vector of all available nodes
-    pub fn get_nodes(&self) -> Vec<Node<D>> {
-        self.0.borrow().nodes.clone()
-    }
-
-    /// Returns the Node with the given ZWave network id, when available.
-    pub fn get_node(&self, index: usize) -> Option<Node<D>> {
-        let this = self.0.borrow();
+    /// This function returns the defined node and a mutable reference
+    /// to the z-wave driver.
+    pub fn node<I>(&mut self, id: I) -> Option<Node<D>>
+    where I: Into<u8> {
+        let id = id.into();
 
         // loop over all nodes and check if the id exist
-        for n in &this.nodes {
-            if index == n.get_id() as usize {
+        for n in self.nodes.borrow().iter() {
+            if id == n.get_id() {
                 // return the node with the id
                 return Some(n.clone());
             }
@@ -87,51 +56,49 @@ impl<D> Controller<D> where D: Driver+Clone {
         None
     }
 
-    /// returns the driver for this controller
-    pub fn get_driver(&self) -> D {
-        self.0.borrow().driver.clone()
-    }
-}
+    /// Discover all nodes which are present in the network
+    pub fn discover_nodes(&self) -> Result<(), Error> {
+        // clear the existing nodes
+        self.nodes.borrow_mut().clear();
 
-/// The clone function need to be written manually
-/// beacause of a 'bug' in rust.
-impl<D> Clone for Controller<D> where D: Driver+Clone {
-    fn clone(&self) -> Controller<D> {
-        Controller(self.0.clone())
+        // get all node id's which are in the network
+        let ids = self.driver.borrow_mut().get_node_ids()?;
+
+        // create a node object for each id
+        for i in ids {
+            // create the node for the given id
+            self.nodes.borrow_mut().push(Node::new(self.driver.clone(), i as u8));
+        }
+
+        // when everything went well, return no error
+        Ok(())
     }
 }
 
 /************************** Node Area *********************/
 
-// The private representation of a node
-struct _Node<D> where D: Driver+Clone {
+#[derive(Debug)]
+pub struct Node<D> where D: Driver {
+    driver: Rc<RefCell<D>>,
     id: u8,
-    controller: Controller<D>,
     generic_type: GenericType,
     class_basic: Option<CmdClass>
 }
 
-// reference type for the node
-type NodeRef<D> = Rc<RefCell<_Node<D>>>;
-
-// The public representation of a node, with some syntactic sugar.
-pub struct Node<D>(NodeRef<D>) where D: Driver+Clone;
-
-// The actual node implementation
-impl<D> Node<D> where D: Driver+Clone {
-    /// Creates a new node with no edges.
-    pub fn new(contr: Controller<D>, id: u8) -> Node<D> {
-        let node = Node(Rc::new(RefCell::new(_Node {
+impl<D> Node<D> where D: Driver {
+    // Create a new node.
+    pub fn new(driver: Rc<RefCell<D>>, id: u8) -> Node<D>{
+        let mut node = Node {
+            driver: driver,
             id: id,
-            controller: contr,
             generic_type: GenericType::Unknown,
             class_basic: None
-        })));
+        };
 
         // we need to handle to spress the warning,
         // wiich can't be deactivated until today
         if node.discover_type().is_err() {
-            node.0.borrow_mut().generic_type = GenericType::Unknown;
+            node.generic_type = GenericType::Unknown;
         }
         node.discover_classes();
 
@@ -139,42 +106,36 @@ impl<D> Node<D> where D: Driver+Clone {
     }
 
     /// Sets the available type for this node
-    pub fn discover_type(&self) -> Result<(), Error> {
-        let mut this = &mut self.0.borrow_mut();
-
-        this.generic_type = this.controller.get_driver().get_node_generic_class(&this.id)?;
+    pub fn discover_type(&mut self) -> Result<(), Error> {
+        // set the genreic type for this node
+        self.generic_type = self.driver.borrow_mut().get_node_generic_class(&self.id)?;
 
         Ok(())
     }
 
     /// Sets the available function classes for this node
     pub fn discover_classes(&self) {
-        //let mut this = &mut self.0.borrow_mut();
-
         // todo get the information from the device
 
         // basic is always available
         //this.class_basic = Some(Basic::new(self.clone()));
     }
 
-    /// returns the basic command class to interact with
-    pub fn get_basic(&self) -> Option<CmdClass> {
-        self.0.borrow_mut().class_basic.clone()
-    }
-
-    /// returns the id of the node in the zwave network
+    // get the node id
     pub fn get_id(&self) -> u8 {
-        self.0.borrow().id.clone()
-    }
-
-    // returns the generic type of the node
-    pub fn get_generic_type(&self) -> GenericType {
-        self.0.borrow().generic_type.clone()
+        self.id
     }
 }
 
-impl<D> Clone for Node<D> where D: Driver+Clone {
+
+impl<D> Clone for Node<D> where D: Driver {
+    /// We need to implement Clone manually because of a bugin rust
     fn clone(&self) -> Node<D> {
-        Node(self.0.clone())
+        Node {
+            driver: self.driver.clone(),
+            id: self.id,
+            generic_type: self.generic_type,
+            class_basic: self.class_basic
+        }
     }
 }

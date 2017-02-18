@@ -58,7 +58,7 @@ extern crate serial;
 // load all internal dependencies, which are used
 pub mod error;
 pub mod driver;
-pub mod cc;
+pub mod cmds;
 pub mod basic;
 
 // The following mod's are deactivated to enable the restructre of the crate

@@ -68,13 +68,20 @@ fn main() {
     let id = driver.write(m).unwrap();
     println!("RECV {:?}", driver.read(&id));
 
-    let id = driver.write(rzw::cc::basic::get(0x02).to_vec()).unwrap();
-    println!("RECV {:?}", rzw::cc::msg::Message::parse(&driver.read(&0).unwrap()));
+    let id = driver.write(rzw::cmds::basic::get(0x03)).unwrap();
+    println!("RECV {:?}", rzw::cmds::Message::parse(&driver.read(&0).unwrap()));
     println!("RECV {:?}", driver.read(&0));
     println!("RECV {:?}", driver.read(&0));
 
 
-    println!("{:?}", driver.get_messages());
+    //println!("{:?}", driver.get_messages());
 
-    rzw::basic::Controller::new(driver);
+    use rzw::error::Error;
+    let mut zwave = rzw::basic::Controller::new(driver).unwrap();
+    zwave.node(3);
+
+
+
+    //let zwave = open("zwave/path");
+    //zwave.node(3).map(|n| n.basic_set(1));
 }
