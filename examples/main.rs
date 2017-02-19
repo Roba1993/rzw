@@ -8,12 +8,11 @@
 //! ```
 
 extern crate rzw;
-
 extern crate enum_primitive;
 
 use rzw::driver::Driver;
-
 use enum_primitive::FromPrimitive;
+
 
 // edit here the path to your Z-Wave controller device
 static DEVICE: &'static str = "/dev/tty.usbmodem1421";

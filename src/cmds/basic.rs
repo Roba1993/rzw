@@ -1,25 +1,19 @@
-use cmds::CmdClass;
-use cmds::Message;
+use cmds::{CommandClass, Message};
 
-/// List of the Basic class functions
-enum_from_primitive! {
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[allow(non_camel_case_types)]
-pub enum Function {
-    Set = 0x01,
-    Get = 0x02,
-    Report = 0x03,
-}
-}
 
-/// Generate the message for the basic Command Class with
-/// the function to set a value.
-pub fn set(node_id: u8, value: u8) -> Message {
-    Message::new(node_id, CmdClass::BASIC, Function::Set as u8, vec!(value))
-}
+#[derive(Debug, Clone)]
+pub struct Basic;
 
-/// Generate the message for the basic Command Class with
-/// the function to get a value.
-pub fn get(node_id: u8) -> Message {
-    Message::new(node_id, CmdClass::BASIC, Function::Get as u8, vec!())
+impl Basic {
+    /// Generate the message for the basic Command Class with
+    /// the function to set a value.
+    pub fn set(&self, node_id: u8, value: u8) -> Message {
+        Message::new(node_id, CommandClass::Basic(self.clone()), 0x01, vec!(value))
+    }
+
+    /// Generate the message for the basic Command Class with
+    /// the function to get a value.
+    pub fn get(&self, node_id: u8) -> Message {
+        Message::new(node_id, CommandClass::Basic(self.clone()), 0x02, vec!())
+    }
 }

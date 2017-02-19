@@ -12,11 +12,33 @@ pub mod basic;
 pub mod info;
 
 
-/// List of the ZWave Command Classes
-enum_from_primitive! {
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[allow(non_camel_case_types)]
-pub enum CmdClass {
+#[derive(Debug, Clone)]
+pub enum CommandClass {
+    NoOperation(),
+    NodeInfo(),
+    Basic(basic::Basic)
+}
+
+impl CommandClass {
+    fn as_u8(&self) -> u8 {
+        match self.clone() {
+            CommandClass::NoOperation() => 0x00,
+            CommandClass::NodeInfo() => 0x01,
+            CommandClass::Basic(_) => 0x20,
+        }
+    }
+
+    fn from_u8(val: u8) -> CommandClass {
+        match val {
+            0x00 => CommandClass::NoOperation(),
+            0x01 => CommandClass::NodeInfo(),
+            0x20 => CommandClass::Basic(basic::Basic),
+            _ => CommandClass::NoOperation()
+        }
+    }
+}
+
+/* All possibile command classes
     NO_OPERATION = 0x00,
     NODE_INFO = 0x01,
     REQUEST_NODE_INFO = 0x02,
@@ -131,10 +153,9 @@ pub enum CmdClass {
     SENSOR_CONFIGURATION = 0x9E,
     MARK = 0xEF,
     NON_INTEROPERABLE = 0xF0,
-}
-}
+*/
 
-use num::FromPrimitive;
+
 use error::{Error, ErrorKind};
 
 /// ZWave message to write and read
@@ -152,14 +173,14 @@ use error::{Error, ErrorKind};
 #[derive(Debug, Clone)]
 pub struct Message {
     pub node_id: u8,
-    pub cmd_class: CmdClass,
+    pub cmd_class: CommandClass,
     pub cmd: u8,
     pub data: Vec<u8>
 }
 
 impl Message {
     /// create a new message
-    pub fn new(node_id: u8, cmd_class: CmdClass, cmd: u8, data: Vec<u8>) -> Message {
+    pub fn new(node_id: u8, cmd_class: CommandClass, cmd: u8, data: Vec<u8>) -> Message {
         Message {
             node_id: node_id,
             cmd_class: cmd_class,
@@ -189,7 +210,7 @@ impl Message {
         let node_id = data[0];
 
         // get the commadn class
-        let cmd_class = CmdClass::from_u8(data[2]).ok_or(Error::new(ErrorKind::UnknownZWave, "The ZWave Command Class is unknown"))?;
+        let cmd_class = CommandClass::from_u8(data[2]);
 
         // get the command
         let cmd = data[3];
@@ -215,7 +236,7 @@ impl Message {
         let mut v : Vec<u8> = Vec::new();
         v.push(self.node_id);
         v.push((self.data.len()+2) as u8);
-        v.push(self.cmd_class as u8);
+        v.push(self.cmd_class.as_u8());
         v.push(self.cmd);
         v.append(&mut self.data.clone());
         v

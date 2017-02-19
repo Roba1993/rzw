@@ -10,8 +10,10 @@
 
 
 use driver::{Driver, GenericType};
-use cmds::{CmdClass, info};
+use cmds::{CommandClass};
 use error::Error;
+use cmds::info::NodeInfo;
+use cmds::basic::Basic;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -81,7 +83,7 @@ pub struct Node<D> where D: Driver {
     driver: Rc<RefCell<D>>,
     id: u8,
     types: Vec<GenericType>,
-    cmds: Vec<CmdClass>
+    cmds: Vec<CommandClass>
 }
 
 impl<D> Node<D> where D: Driver {
@@ -102,18 +104,21 @@ impl<D> Node<D> where D: Driver {
 
     /// Updates the information of the node
     pub fn update_node_info(&mut self) -> Result<(), Error> {
+
+        let i = NodeInfo;
+
         // Send the command
-        self.driver.borrow_mut().write(info::get(self.id))?;
+        self.driver.borrow_mut().write(i.get(self.id))?;
 
         // Receive the result
         let msg = self.driver.borrow_mut().read()?;
 
         // convert it
-        let (types, cmds) = info::parse(msg)?;
+        let (types, cmds) = i.parse(msg)?;
 
         self.types = types;
         self.cmds = cmds;
-        self.cmds.push(CmdClass::BASIC);
+        self.cmds.push(CommandClass::Basic(Basic));
 
         Ok(())
     }
