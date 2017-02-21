@@ -4,18 +4,19 @@ use error::{Error, ErrorKind};
 use driver::GenericType;
 
 
+#[derive(Debug, Clone)]
 pub struct NodeInfo;
 
 impl NodeInfo {
     /// Generate the message for the basic Command Class with
     /// the function to get a value.
-    pub fn get(&self, node_id: u8) -> Message {
-        Message::new(node_id, CommandClass::NodeInfo(), 0x02, vec!())
+    pub fn get(node_id: u8) -> Message {
+        Message::new(node_id, CommandClass::NODE_INFO, 0x02, vec!())
     }
 
     /// Read a the Node_Information message and parse it to the type and command
     /// class types.
-    pub fn parse<M>(&self, msg: M) -> Result<(Vec<GenericType>, Vec<CommandClass>), Error>
+    pub fn report<M>(msg: M) -> Result<(Vec<GenericType>, Vec<CommandClass>), Error>
         where M: Into<Vec<u8>> {
             // get the message
             let msg = msg.into();
@@ -52,13 +53,13 @@ impl NodeInfo {
                 let m = msg.get(i as usize).ok_or(Error::new(ErrorKind::UnknownZWave, "Message is to short"))?;
                 let m = m.clone();
 
+                // try to convert the command
+                let cmd = CommandClass::from_u8(m.clone()).unwrap_or(CommandClass::NO_OPERATION);
+
                 // when the device is unkown continue
-                if m == CommandClass::NoOperation as u8 {
+                if cmd == CommandClass::NO_OPERATION {
                     continue;
                 }
-
-                // try to convert the command
-                let cmd = CommandClass::from_u8(m.clone());
 
                 // When the command is known push it to the vec
                 cmds.push(cmd);

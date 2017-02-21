@@ -10,10 +10,6 @@
 extern crate rzw;
 extern crate enum_primitive;
 
-use rzw::driver::Driver;
-use enum_primitive::FromPrimitive;
-
-
 // edit here the path to your Z-Wave controller device
 static DEVICE: &'static str = "/dev/tty.usbmodem1421";
 
@@ -26,20 +22,17 @@ fn main() {
     }
 
     // open a zwave controller
-    let zwave = rzw::open(DEVICE);
+    let mut zwave = rzw::open(DEVICE).unwrap();
 
+    // loop over all nodes
+    for node_id in zwave.nodes() {
+        // print the available command classes for each node
+        println!("Node {:?} available Command Classes:\n{:?}\n", node_id, zwave.node(node_id).map(|n| n.get_commands()));
 
-    /*
-    Test's -> need access to driver over the controller
+        // Turn each node on
+        zwave.node(node_id).map(|n| n.basic_set(0xFF)).unwrap().unwrap();
 
-    println!("SEND {:?}", driver.write(vec!(0x03, 0x03, 0x20, 0x01, 0x00)));
-
-    println!("SEND {:?}", driver.write(rzw::cmds::basic::get(0x03)));
-    //println!("RECV {:?}", rzw::cmds::Message::parse(&driver.read().unwrap()));
-    println!("RECV {:?}", driver.read());
-
-    println!("SEND {:?}", driver.write(rzw::cmds::info::get(0x03)));
-    let m = driver.read().unwrap();
-    println!("{:?}", rzw::cmds::info::parse(m));*/
-
+        // Get the status for each node
+        println!("Node 3 Status: {:?}", zwave.node(node_id).map(|n| n.basic_get()));
+    }
 }

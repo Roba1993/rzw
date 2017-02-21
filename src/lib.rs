@@ -1,6 +1,3 @@
-//! # Under heavy reconstruction
-//! Try on your own risk! - The example is outdated
-//!
 //! # Rusty Z-Wave
 //!
 //! The `rzw` crate provides a native functionality to control a Z-Wave network over a USB Z-Wave dongle. It's completely written in Rust to ensure safety and performance.
@@ -22,7 +19,8 @@
 //! Add `rzw` as a dependency in `Cargo.toml`:
 //!
 //! ```toml
-//!  todo
+//! [dependencies]
+//! rzw = { git = "https://github.com/Roba1993/rzw" }
 //! ```
 //!
 //! Use the `rzw::Controller` as starting point to communicate, which communicates with the Z-Wave network.
@@ -31,17 +29,20 @@
 //! extern crate rzw;
 //!
 //! fn main() {
-//!     // create a new controller
-//!     let controller = rzw::Controller::new("/dev/tty.usbmodem1411").unwrap();
+//!     // Access the zwave network
+//!     let zwave = rzw::open("/dev/tty.usbmodem1411").unwrap();
 //!
-//!     // get all nodes
-//!     let nodes = controller.get_nodes();
+//!     // get all node ids
+//!     let nodes = zwave.nodes();
 //!
 //!     // loop over the nodes
 //!     for node in nodes {
+//!         // print the available command classes for each node
+//!         println!("{:?}" zwave.node(node).map(|n| n.get_commands()));
+//!
 //!         // set the basic value on all nodes
 //!         // for binary switch this means, turn them on
-//!         println!("SEND: {:?}", node.get_basic().unwrap().set(0xFF));
+//!         zwave.node(node_id).map(|n| n.basic_set(0xFF)).unwrap();
 //!     }
 //! }
 //! ```

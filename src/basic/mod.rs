@@ -39,6 +39,24 @@ impl<D> Controller<D> where D: Driver {
         Ok(controller)
     }
 
+    /// Discover all nodes which are present in the network
+    pub fn discover_nodes(&self) -> Result<(), Error> {
+        // clear the existing nodes
+        self.nodes.borrow_mut().clear();
+
+        // get all node id's which are in the network
+        let ids = self.driver.borrow_mut().get_node_ids()?;
+
+        // create a node object for each id
+        for i in ids {
+            // create the node for the given id
+            self.nodes.borrow_mut().push(Node::new(self.driver.clone(), i as u8));
+        }
+
+        // when everything went well, return no error
+        Ok(())
+    }
+
     /// This function returns the defined node and a mutable reference
     /// to the z-wave driver.
     pub fn node<I>(&mut self, id: I) -> Option<Node<D>>
@@ -57,22 +75,10 @@ impl<D> Controller<D> where D: Driver {
         None
     }
 
-    /// Discover all nodes which are present in the network
-    pub fn discover_nodes(&self) -> Result<(), Error> {
-        // clear the existing nodes
-        self.nodes.borrow_mut().clear();
-
-        // get all node id's which are in the network
-        let ids = self.driver.borrow_mut().get_node_ids()?;
-
-        // create a node object for each id
-        for i in ids {
-            // create the node for the given id
-            self.nodes.borrow_mut().push(Node::new(self.driver.clone(), i as u8));
-        }
-
-        // when everything went well, return no error
-        Ok(())
+    /// Return all node ids
+    pub fn nodes(&self) -> Vec<u8> {
+        // get all node ids
+        self.nodes.borrow().iter().map(|n| n.id).collect::<Vec<u8>>()
     }
 }
 
@@ -104,21 +110,11 @@ impl<D> Node<D> where D: Driver {
 
     /// Updates the information of the node
     pub fn update_node_info(&mut self) -> Result<(), Error> {
-
-        let i = NodeInfo;
-
-        // Send the command
-        self.driver.borrow_mut().write(i.get(self.id))?;
-
-        // Receive the result
-        let msg = self.driver.borrow_mut().read()?;
-
         // convert it
-        let (types, cmds) = i.parse(msg)?;
+        let (types, cmds) = self.node_info_get()?;
 
         self.types = types;
         self.cmds = cmds;
-        self.cmds.push(CommandClass::Basic(Basic));
 
         Ok(())
     }
@@ -126,6 +122,36 @@ impl<D> Node<D> where D: Driver {
     // get the node id
     pub fn get_id(&self) -> u8 {
         self.id
+    }
+
+    pub fn get_commands(&self) -> Vec<CommandClass> {
+        self.cmds.clone()
+    }
+
+    /// This function returns the GenericType for the node and the CommandClass.
+    pub fn node_info_get(&self) -> Result<(Vec<GenericType>, Vec<CommandClass>), Error> {
+        // Send the command
+        self.driver.borrow_mut().write(NodeInfo::get(self.id))?;
+
+        // Receive the result
+        let msg = self.driver.borrow_mut().read()?;
+
+        // convert and return it
+        NodeInfo::report(msg)
+    }
+
+    /// This function sets the basic status of the node.
+    pub fn basic_set(&self, value: u8) -> Result<u8, Error> {
+        // Send the command
+        self.driver.borrow_mut().write(Basic::set(self.id, value))
+    }
+
+    pub fn basic_get(&self) -> Result<u8, Error> {
+        // Send the command
+        self.driver.borrow_mut().write(Basic::get(self.id))?;
+
+        // read the answer and convert it
+        Basic::report(self.driver.borrow_mut().read()?)
     }
 }
 
