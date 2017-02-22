@@ -14,6 +14,7 @@ use cmds::{CommandClass};
 use error::Error;
 use cmds::info::NodeInfo;
 use cmds::basic::Basic;
+use cmds::switch_binary::SwitchBinary;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -141,9 +142,10 @@ impl<D> Node<D> where D: Driver {
     }
 
     /// This function sets the basic status of the node.
-    pub fn basic_set(&self, value: u8) -> Result<u8, Error> {
+    pub fn basic_set<V>(&self, value: V) -> Result<u8, Error>
+    where V: Into<u8> {
         // Send the command
-        self.driver.borrow_mut().write(Basic::set(self.id, value))
+        self.driver.borrow_mut().write(Basic::set(self.id, value.into()))
     }
 
     pub fn basic_get(&self) -> Result<u8, Error> {
@@ -152,6 +154,29 @@ impl<D> Node<D> where D: Driver {
 
         // read the answer and convert it
         Basic::report(self.driver.borrow_mut().read()?)
+    }
+
+    /// The Binary Switch Command Class is used to control devices with On/Off
+    /// or Enable/Disable capability.
+    ///
+    /// The Binary Switch Set command, version 1 is used to set a binary value.
+    pub fn switch_binary_set<V>(&self, value: V) -> Result<u8, Error>
+    where V: Into<bool> {
+        // Send the command
+        self.driver.borrow_mut().write(SwitchBinary::set(self.id, value))
+    }
+
+    /// The Binary Switch Command Class is used to control devices with On/Off
+    /// or Enable/Disable capability.
+    ///
+    /// The Binary Switch Get command, version 1 is used to request the status
+    /// of a device with On/Off or Enable/Disable capability.
+    pub fn switch_binary_get(&self) -> Result<bool, Error> {
+        // Send the command
+        self.driver.borrow_mut().write(SwitchBinary::get(self.id))?;
+
+        // read the answer and convert it
+        SwitchBinary::report(self.driver.borrow_mut().read()?)
     }
 }
 

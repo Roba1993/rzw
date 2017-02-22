@@ -10,6 +10,7 @@
 
 pub mod basic;
 pub mod info;
+pub mod switch_binary;
 
 use enum_primitive::FromPrimitive;
 use error::{Error, ErrorKind};
