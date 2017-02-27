@@ -8,6 +8,8 @@
 //! The `Controller` provides the functionality to connected
 //! to a Z-Wave network, to send  messages and to receive them.
 
+pub use cmds::powerlevel::PowerLevelStatus;
+pub use cmds::powerlevel::PowerLevelOperationStatus;
 
 use driver::{Driver, GenericType};
 use cmds::{CommandClass};
@@ -15,6 +17,7 @@ use error::Error;
 use cmds::info::NodeInfo;
 use cmds::basic::Basic;
 use cmds::switch_binary::SwitchBinary;
+use cmds::powerlevel::PowerLevel;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -177,6 +180,58 @@ impl<D> Node<D> where D: Driver {
 
         // read the answer and convert it
         SwitchBinary::report(self.driver.borrow_mut().read()?)
+    }
+
+    /// The Powerlevel Set Command is used to set the power level indicator value,
+    /// which should be used by the node when transmitting RF, and the timeout for
+    /// this power level indicator value before returning the power level defined
+    /// by the application.
+    ///
+    /// The seconds defines how many seconds the device stays in the defined powerlevel.
+    pub fn powerlevel_set<S, T>(&self, status:S, seconds:T) -> Result<u8, Error>
+    where S: Into<PowerLevelStatus>, T: Into<u8> {
+        // Send the command
+        self.driver.borrow_mut().write(PowerLevel::set(self.id, status, seconds))
+    }
+
+    /// This command is used to advertise the current power level.
+    ///
+    /// Return the Powerlevel status and the time left on this power level.
+    pub fn powerlevel_get(&self) -> Result<(PowerLevelStatus, u8), Error> {
+        // Send the command
+        self.driver.borrow_mut().write(PowerLevel::get(self.id))?;
+
+        // read the answer and convert it
+        PowerLevel::report(self.driver.borrow_mut().read()?)
+    }
+
+    /// The Powerlevel Test Node Set Command is used to instruct the destination node to transmit
+    /// a number of test frames to the specified NodeID with the RF power level specified. After
+    /// the test frame transmissions the RF power level is reset to normal and the result (number
+    /// of acknowledged test frames) is saved for subsequent read-back. The result of the test may
+    /// be requested with a Powerlevel Test Node Get Command.
+    ///
+    /// node_id: The node id where to send the message.
+    /// test_node_id: The test NodeID that should receive the test frames.
+    /// level: The power level indicator value to use in the test frame transmission.
+    /// test_frames: The Test frame count field contains the number of test frames to transmit to
+    ///              the Test NodeID. The first byte is the most significant byte.
+    pub fn powerlevel_test_node_set<T, L, F>(&self, test_node_id: T, level: L, test_frames: F) -> Result<u8, Error>
+    where T: Into<u8>, L: Into<PowerLevelStatus>, F: Into<u16> {
+        // Send the command
+        self.driver.borrow_mut().write(PowerLevel::test_node_set(self.id, test_node_id, level, test_frames))
+    }
+
+    /// This command is used to report the latest result of a test frame
+    /// transmission started by the Powerlevel Test Node Set Command.
+    ///
+    /// Return the test node id, status of operation and the test frane count.
+    pub fn powerlevel_test_node_get(&self) -> Result<(u8, PowerLevelOperationStatus, u16), Error> {
+        // Send the command
+        self.driver.borrow_mut().write(PowerLevel::test_node_get(self.id))?;
+
+        // read the answer and convert it
+        PowerLevel::test_node_report(self.driver.borrow_mut().read()?)
     }
 }
 

@@ -11,14 +11,16 @@
 pub mod basic;
 pub mod info;
 pub mod switch_binary;
+pub mod powerlevel;
 
 use enum_primitive::FromPrimitive;
 use error::{Error, ErrorKind};
 
-/// List of the ZWave Command Classes
+
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[allow(non_camel_case_types)]
+/// List of the ZWave Command Classes
 pub enum CommandClass {
     NO_OPERATION = 0x00,
     NODE_INFO = 0x01,
@@ -144,7 +146,9 @@ pub enum CommandClass {
 /// To build up such a message use the following implementation.
 ///
 /// ```rust
-/// Message::new(0x02, CmdClass::BASIC, 0x01, vec!(0xFF));
+/// use rzw::cmds::{Message, CommandClass};
+///
+/// Message::new(0x02, CommandClass::BASIC, 0x01, vec!(0xFF));
 /// ```
 ///
 /// The structure of a ZWave message looks like the following:
