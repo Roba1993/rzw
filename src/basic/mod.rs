@@ -10,6 +10,7 @@
 
 pub use cmds::powerlevel::PowerLevelStatus;
 pub use cmds::powerlevel::PowerLevelOperationStatus;
+pub use cmds::MeterData;
 
 use driver::{Driver, GenericType};
 use cmds::{CommandClass};
@@ -18,6 +19,7 @@ use cmds::info::NodeInfo;
 use cmds::basic::Basic;
 use cmds::switch_binary::SwitchBinary;
 use cmds::powerlevel::PowerLevel;
+use cmds::meter::Meter;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -232,6 +234,37 @@ impl<D> Node<D> where D: Driver {
 
         // read the answer and convert it
         PowerLevel::test_node_report(self.driver.borrow_mut().read()?)
+    }
+
+    /// A meter is used to monitor a resource. The meter accumulates the resource flow over time.
+    /// As an option, the meter may report not only the most recent accumulated reading but also
+    /// the previous reading and the time that elapsed since then. A meter may also be able to
+    /// report the current resource flow. This is known as the instant value.
+    ///
+    /// The Meter Get Command is used to request the accumulated consumption in physical units
+    /// from a metering device.
+    pub fn meter_get(&self) -> Result<MeterData, Error> {
+        // Send the command
+        self.driver.borrow_mut().write(Meter::get(self.id))?;
+
+        // read the answer and convert it
+        Meter::report(self.driver.borrow_mut().read()?)
+    }
+
+    /// A meter is used to monitor a resource. The meter accumulates the resource flow over time.
+    /// As an option, the meter may report not only the most recent accumulated reading but also
+    /// the previous reading and the time that elapsed since then. A meter may also be able to
+    /// report the current resource flow. This is known as the instant value.
+    ///
+    /// The Meter Get Command is used to request the accumulated consumption in physical units
+    /// from a metering device.
+    pub fn meter_get_v2<S>(&self, meter_type: S) -> Result<(MeterData, u16, MeterData), Error>
+    where S: Into<MeterData> {
+        // Send the command
+        self.driver.borrow_mut().write(Meter::get_v2(self.id, meter_type.into()))?;
+
+        // read the answer and convert it
+        Meter::report_v2(self.driver.borrow_mut().read()?)
     }
 }
 

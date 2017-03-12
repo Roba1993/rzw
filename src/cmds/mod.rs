@@ -11,6 +11,7 @@
 pub mod basic;
 pub mod info;
 pub mod switch_binary;
+pub mod meter;
 pub mod powerlevel;
 
 use enum_primitive::FromPrimitive;
@@ -137,6 +138,40 @@ pub enum CommandClass {
     MARK = 0xEF,
     NON_INTEROPERABLE = 0xF0,
 }
+}
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub enum MeterData {
+    Electric_kWh(f64),
+    Electric_kVAh(f64),
+    Electric_W(f64),
+    Electric_PulseCount(f64),
+    Gas_meter2(f64),
+    Gas_feet2(f64),
+    Gas_PulseCount(f64),
+    Water_meter2(f64),
+    Water_feet2(f64),
+    Water_Gallons(f64),
+    Water_PulseCount(f64)
+}
+
+impl MeterData {
+    pub fn get_scale(&self) -> u8 {
+        match *self {
+            MeterData::Electric_kWh(_) => 0x00,
+            MeterData::Electric_kVAh(_) => 0x01,
+            MeterData::Electric_W(_) => 0x02,
+            MeterData::Electric_PulseCount(_) => 0x03,
+            MeterData::Gas_meter2(_) => 0x00,
+            MeterData::Gas_feet2(_) => 0x01,
+            MeterData::Gas_PulseCount(_) => 0x03,
+            MeterData::Water_meter2(_) => 0x00,
+            MeterData::Water_feet2(_) => 0x01,
+            MeterData::Water_Gallons(_) => 0x02,
+            MeterData::Water_PulseCount(_) => 0x03,
+        }
+    }
 }
 
 
