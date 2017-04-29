@@ -47,7 +47,7 @@ impl SerialDriver {
         }));
 
         // set the timeout
-        try!(port.set_timeout(Duration::from_millis(100)));
+        try!(port.set_timeout(Duration::from_millis(200)));
 
         // create the new struct
         let driver = SerialDriver {
