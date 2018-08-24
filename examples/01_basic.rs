@@ -27,6 +27,9 @@ fn main() {
 
     fn handler(msg: rzw::driver::serial::SerialMsg) {
         println!("message {:?}", msg);
+
+        let parsed = rzw::cmds::Message::parse(&msg.data);
+        println!("message parsed {:?}", parsed);
     }
 
     zwave.handle_messages(Box::new(handler));
