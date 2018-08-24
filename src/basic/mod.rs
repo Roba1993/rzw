@@ -25,13 +25,15 @@ use error::Error;
 use std::cell::RefCell;
 use std::clone::Clone;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 #[derive(Debug, Clone)]
 pub struct Controller<D>
 where
     D: Driver,
 {
-    driver: Rc<RefCell<D>>,
+    driver: Arc<Mutex<D>>,
     nodes: Rc<RefCell<Vec<Node<D>>>>,
 }
 
@@ -42,7 +44,7 @@ where
     /// Generate a new Controller to interface with the z-wave network.
     pub fn new(driver: D) -> Result<Controller<D>, Error> {
         let controller = Controller {
-            driver: Rc::new(RefCell::new(driver)),
+            driver: Arc::new(Mutex::new(driver)),
             nodes: Rc::new(RefCell::new(vec![])),
         };
 
@@ -57,7 +59,7 @@ where
         self.nodes.borrow_mut().clear();
 
         // get all node id's which are in the network
-        let ids = self.driver.borrow_mut().get_node_ids()?;
+        let ids = self.driver.lock().unwrap().get_node_ids()?;
 
         // create a node object for each id
         for i in ids {
@@ -101,8 +103,14 @@ where
     }
 
     pub fn handle_messages(&self) {
-        loop {
-            match self.driver.borrow_mut().read() {
+        /*let driver = self.sync_driver.clone();
+
+        thread::spawn(move || {
+            let m_driver = driver.lock().unwrap();
+        });*/
+
+        /*driver.read();
+            match driver.borrow_mut().read() {
                 Ok(raw) => {
                     println!("found message {:?}", raw);
                     let msg = Message::parse(&raw);
@@ -110,7 +118,7 @@ where
                 }
                 Err(_) => println!("{}", "no message"),
             }
-        }
+        */
     }
 }
 
@@ -121,7 +129,7 @@ pub struct Node<D>
 where
     D: Driver,
 {
-    driver: Rc<RefCell<D>>,
+    driver: Arc<Mutex<D>>,
     id: u8,
     types: Vec<GenericType>,
     cmds: Vec<CommandClass>,
@@ -132,7 +140,7 @@ where
     D: Driver,
 {
     // Create a new node.
-    pub fn new(driver: Rc<RefCell<D>>, id: u8) -> Node<D> {
+    pub fn new(driver: Arc<Mutex<D>>, id: u8) -> Node<D> {
         let mut node = Node {
             driver: driver,
             id: id,
@@ -168,11 +176,13 @@ where
 
     /// This function returns the GenericType for the node and the CommandClass.
     pub fn node_info_get(&self) -> Result<(Vec<GenericType>, Vec<CommandClass>), Error> {
+        let mut driver = self.driver.lock().unwrap();
+
         // Send the command
-        self.driver.borrow_mut().write(NodeInfo::get(self.id))?;
+        driver.write(NodeInfo::get(self.id))?;
 
         // Receive the result
-        let msg = self.driver.borrow_mut().read()?;
+        let msg = driver.read()?;
 
         // convert and return it
         NodeInfo::report(msg)
@@ -185,16 +195,17 @@ where
     {
         // Send the command
         self.driver
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .write(Basic::set(self.id, value.into()))
     }
 
     pub fn basic_get(&self) -> Result<u8, Error> {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(Basic::get(self.id))?;
-
+        driver.write(Basic::get(self.id))?;
         // read the answer and convert it
-        Basic::report(self.driver.borrow_mut().read()?)
+        Basic::report(driver.read()?)
     }
 
     /// The Binary Switch Command Class is used to control devices with On/Off
@@ -207,7 +218,8 @@ where
     {
         // Send the command
         self.driver
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .write(SwitchBinary::set(self.id, value))
     }
 
@@ -217,11 +229,11 @@ where
     /// The Binary Switch Get command, version 1 is used to request the status
     /// of a device with On/Off or Enable/Disable capability.
     pub fn switch_binary_get(&self) -> Result<bool, Error> {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(SwitchBinary::get(self.id))?;
-
+        driver.write(SwitchBinary::get(self.id))?;
         // read the answer and convert it
-        SwitchBinary::report(self.driver.borrow_mut().read()?)
+        SwitchBinary::report(driver.read()?)
     }
 
     /// The Powerlevel Set Command is used to set the power level indicator value,
@@ -237,7 +249,8 @@ where
     {
         // Send the command
         self.driver
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .write(PowerLevel::set(self.id, status, seconds))
     }
 
@@ -245,11 +258,12 @@ where
     ///
     /// Return the Powerlevel status and the time left on this power level.
     pub fn powerlevel_get(&self) -> Result<(PowerLevelStatus, u8), Error> {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(PowerLevel::get(self.id))?;
+        driver.write(PowerLevel::get(self.id))?;
 
         // read the answer and convert it
-        PowerLevel::report(self.driver.borrow_mut().read()?)
+        PowerLevel::report(driver.read()?)
     }
 
     /// The Powerlevel Test Node Set Command is used to instruct the destination node to transmit
@@ -275,7 +289,7 @@ where
         F: Into<u16>,
     {
         // Send the command
-        self.driver.borrow_mut().write(PowerLevel::test_node_set(
+        self.driver.lock().unwrap().write(PowerLevel::test_node_set(
             self.id,
             test_node_id,
             level,
@@ -290,11 +304,12 @@ where
     pub fn powerlevel_test_node_get(&self) -> Result<(u8, PowerLevelOperationStatus, u16), Error> {
         // Send the command
         self.driver
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .write(PowerLevel::test_node_get(self.id))?;
 
         // read the answer and convert it
-        PowerLevel::test_node_report(self.driver.borrow_mut().read()?)
+        PowerLevel::test_node_report(self.driver.lock().unwrap().read()?)
     }
 
     /// A meter is used to monitor a resource. The meter accumulates the resource flow over time.
@@ -305,11 +320,12 @@ where
     /// The Meter Get Command is used to request the accumulated consumption in physical units
     /// from a metering device.
     pub fn meter_get(&self) -> Result<MeterData, Error> {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(Meter::get(self.id))?;
+        driver.write(Meter::get(self.id))?;
 
         // read the answer and convert it
-        Meter::report(self.driver.borrow_mut().read()?)
+        Meter::report(driver.read()?)
     }
 
     /// A meter is used to monitor a resource. The meter accumulates the resource flow over time.
@@ -323,13 +339,12 @@ where
     where
         S: Into<MeterData>,
     {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver
-            .borrow_mut()
-            .write(Meter::get_v2(self.id, meter_type.into()))?;
+        driver.write(Meter::get_v2(self.id, meter_type.into()))?;
 
         // read the answer and convert it
-        Meter::report_v2(self.driver.borrow_mut().read()?)
+        Meter::report_v2(driver.read()?)
     }
 }
 
