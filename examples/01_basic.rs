@@ -23,6 +23,12 @@ fn main() {
     // open a zwave controller
     let mut zwave = rzw::open(DEVICE).unwrap();
 
+    fn test(msg: rzw::cmds::Message) {
+        println!("message {:?}", msg);
+    }
+
+    zwave.handle_messages(Box::new(test));
+
     // loop over all nodes
     for node_id in zwave.nodes() {
         // print the available command classes for each node
@@ -45,6 +51,4 @@ fn main() {
             zwave.node(node_id).map(|n| n.basic_get())
         );
     }
-
-    zwave.handle_messages();
 }

@@ -26,7 +26,11 @@ use std::cell::RefCell;
 use std::clone::Clone;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{thread, time};
+
+pub trait Handler: Send {
+    fn handle(self, msg: Message);
+}
 
 #[derive(Debug, Clone)]
 pub struct Controller<D>
@@ -39,7 +43,7 @@ where
 
 impl<D> Controller<D>
 where
-    D: Driver,
+    D: Driver + Send + 'static,
 {
     /// Generate a new Controller to interface with the z-wave network.
     pub fn new(driver: D) -> Result<Controller<D>, Error> {
@@ -102,23 +106,29 @@ where
             .collect::<Vec<u8>>()
     }
 
-    pub fn handle_messages(&self) {
-        /*let driver = self.sync_driver.clone();
+    pub fn handle_messages(&self, h: Box<Fn(Message) + Send>) {
+        let driver = self.driver.clone();
+        let duration = time::Duration::from_millis(50);
 
-        thread::spawn(move || {
-            let m_driver = driver.lock().unwrap();
-        });*/
+        thread::spawn(move || loop {
+            {
+                let mut m_driver = driver.lock().unwrap();
 
-        /*driver.read();
-            match driver.borrow_mut().read() {
-                Ok(raw) => {
-                    println!("found message {:?}", raw);
-                    let msg = Message::parse(&raw);
-                    println!("message {:?}", msg);
+                loop {
+                    match m_driver.read() {
+                        Ok(raw) => {
+                            let msg = Message::parse(&raw);
+                            h(msg.unwrap());
+                        }
+                        Err(_) => {
+                            break;
+                        }
+                    }
                 }
-                Err(_) => println!("{}", "no message"),
             }
-        */
+
+            thread::sleep(duration);
+        });
     }
 }
 
