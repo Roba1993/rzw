@@ -10,6 +10,8 @@
 extern crate enum_primitive;
 extern crate rzw;
 
+use std::{thread, time};
+
 // edit here the path to your Z-Wave controller device
 static DEVICE: &'static str = "/dev/cu.usbmodem1411";
 
@@ -23,11 +25,11 @@ fn main() {
     // open a zwave controller
     let mut zwave = rzw::open(DEVICE).unwrap();
 
-    fn test(msg: rzw::cmds::Message) {
+    fn handler(msg: rzw::driver::serial::SerialMsg) {
         println!("message {:?}", msg);
     }
 
-    zwave.handle_messages(Box::new(test));
+    zwave.handle_messages(Box::new(handler));
 
     // loop over all nodes
     for node_id in zwave.nodes() {
@@ -50,5 +52,10 @@ fn main() {
             "Node 3 Status: {:?}",
             zwave.node(node_id).map(|n| n.basic_get())
         );
+    }
+
+    loop {
+        let duration = time::Duration::from_millis(50);
+        thread::sleep(duration);
     }
 }

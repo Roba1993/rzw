@@ -24,7 +24,7 @@ pub trait Driver {
 
     /// Read data from the Z-Wave network.
     /// Returns the received message or an error.
-    fn read(&mut self) -> Result<Vec<u8>, Error>;
+    fn read(&mut self) -> Result<serial::SerialMsg, Error>;
 
     /// Returns the id of the registered nodes in the Z-Wave network.
     fn get_node_ids(&mut self) -> Result<Vec<u8>, Error>;

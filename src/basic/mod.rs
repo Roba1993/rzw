@@ -18,7 +18,7 @@ use cmds::meter::Meter;
 use cmds::powerlevel::PowerLevel;
 use cmds::switch_binary::SwitchBinary;
 use cmds::CommandClass;
-use cmds::Message;
+use driver::serial::SerialMsg;
 use driver::{Driver, GenericType};
 use error::Error;
 
@@ -29,7 +29,7 @@ use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
 pub trait Handler: Send {
-    fn handle(self, msg: Message);
+    fn handle(self, msg: SerialMsg);
 }
 
 #[derive(Debug, Clone)]
@@ -106,7 +106,7 @@ where
             .collect::<Vec<u8>>()
     }
 
-    pub fn handle_messages(&self, h: Box<Fn(Message) + Send>) {
+    pub fn handle_messages(&self, h: Box<Fn(SerialMsg) + Send>) {
         let driver = self.driver.clone();
         let duration = time::Duration::from_millis(50);
 
@@ -116,13 +116,8 @@ where
 
                 loop {
                     match m_driver.read() {
-                        Ok(raw) => {
-                            let msg = Message::parse(&raw);
-                            h(msg.unwrap());
-                        }
-                        Err(_) => {
-                            break;
-                        }
+                        Ok(msg) => h(msg),
+                        Err(_) => break,
                     }
                 }
             }
@@ -195,7 +190,7 @@ where
         let msg = driver.read()?;
 
         // convert and return it
-        NodeInfo::report(msg)
+        NodeInfo::report(msg.data)
     }
 
     /// This function sets the basic status of the node.
@@ -215,7 +210,10 @@ where
         // Send the command
         driver.write(Basic::get(self.id))?;
         // read the answer and convert it
-        Basic::report(driver.read()?)
+        match driver.read() {
+            Ok(msg) => Basic::report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// The Binary Switch Command Class is used to control devices with On/Off
@@ -243,7 +241,10 @@ where
         // Send the command
         driver.write(SwitchBinary::get(self.id))?;
         // read the answer and convert it
-        SwitchBinary::report(driver.read()?)
+        match driver.read() {
+            Ok(msg) => SwitchBinary::report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// The Powerlevel Set Command is used to set the power level indicator value,
@@ -273,7 +274,10 @@ where
         driver.write(PowerLevel::get(self.id))?;
 
         // read the answer and convert it
-        PowerLevel::report(driver.read()?)
+        match driver.read() {
+            Ok(msg) => PowerLevel::report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// The Powerlevel Test Node Set Command is used to instruct the destination node to transmit
@@ -312,6 +316,8 @@ where
     ///
     /// Return the test node id, status of operation and the test frane count.
     pub fn powerlevel_test_node_get(&self) -> Result<(u8, PowerLevelOperationStatus, u16), Error> {
+        let mut driver = self.driver.lock().unwrap();
+
         // Send the command
         self.driver
             .lock()
@@ -319,7 +325,10 @@ where
             .write(PowerLevel::test_node_get(self.id))?;
 
         // read the answer and convert it
-        PowerLevel::test_node_report(self.driver.lock().unwrap().read()?)
+        match driver.read() {
+            Ok(msg) => PowerLevel::test_node_report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// A meter is used to monitor a resource. The meter accumulates the resource flow over time.
@@ -335,7 +344,10 @@ where
         driver.write(Meter::get(self.id))?;
 
         // read the answer and convert it
-        Meter::report(driver.read()?)
+        match driver.read() {
+            Ok(msg) => Meter::report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// A meter is used to monitor a resource. The meter accumulates the resource flow over time.
@@ -354,7 +366,10 @@ where
         driver.write(Meter::get_v2(self.id, meter_type.into()))?;
 
         // read the answer and convert it
-        Meter::report_v2(driver.read()?)
+        match driver.read() {
+            Ok(msg) => Meter::report_v2(msg.data),
+            Err(err) => Err(err),
+        }
     }
 }
 
