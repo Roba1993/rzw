@@ -10,13 +10,12 @@
 
 pub mod basic;
 pub mod info;
-pub mod switch_binary;
 pub mod meter;
 pub mod powerlevel;
+pub mod switch_binary;
 
 use enum_primitive::FromPrimitive;
 use error::{Error, ErrorKind};
-
 
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -153,7 +152,7 @@ pub enum MeterData {
     Water_meter2(f64),
     Water_feet2(f64),
     Water_Gallons(f64),
-    Water_PulseCount(f64)
+    Water_PulseCount(f64),
 }
 
 impl MeterData {
@@ -174,7 +173,6 @@ impl MeterData {
     }
 }
 
-
 /// ZWave message to write and read
 ///
 /// The message represent a ZWave message which can be sent or received.
@@ -194,7 +192,7 @@ pub struct Message {
     pub node_id: u8,
     pub cmd_class: CommandClass,
     pub cmd: u8,
-    pub data: Vec<u8>
+    pub data: Vec<u8>,
 }
 
 impl Message {
@@ -204,7 +202,7 @@ impl Message {
             node_id: node_id,
             cmd_class: cmd_class,
             cmd: cmd,
-            data: data
+            data: data,
         }
     }
 
@@ -221,9 +219,9 @@ impl Message {
         }
 
         // check if the length flag matches
-        if data.len() - 2 != data[1] as usize {
-            return Err(Error::new(ErrorKind::UnknownZWave, "The length of the message delivered didn't match with the actual length"));
-        }
+        //if data.len() - 2 != data[1] as usize {
+        //    return Err(Error::new(ErrorKind::UnknownZWave, "The length of the message delivered didn't match with the actual length"));
+        //}
 
         // get the node id
         let node_id = data[0];
@@ -235,10 +233,10 @@ impl Message {
         let cmd = data[3];
 
         // create the message data array
-        let msg_data : &[u8];
+        let msg_data: &[u8];
         // when there is data extract it
         if data.len() > 4 {
-            msg_data = &data[4 .. (data.len())];
+            msg_data = &data[4..(data.len())];
         }
         // if not create a empty array
         else {
@@ -252,9 +250,9 @@ impl Message {
     /// Return the message as Vec<u8>
     pub fn to_vec(&self) -> Vec<u8> {
         // todo check if there a better way
-        let mut v : Vec<u8> = Vec::new();
+        let mut v: Vec<u8> = Vec::new();
         v.push(self.node_id);
-        v.push((self.data.len()+2) as u8);
+        v.push((self.data.len() + 2) as u8);
         v.push(self.cmd_class as u8);
         v.push(self.cmd);
         v.append(&mut self.data.clone());

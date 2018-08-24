@@ -44,6 +44,10 @@ fn main() {
 }
 ```
 
+## Resources
+
+- [zwave info compilation](https://github.com/yepher/RaZBerry)
+
 ---
 ## Thanks
 * To the [serial-rs](https://github.com/dcuddeback/serial-rs) team - who made this crate possible.

@@ -15,3 +15,7 @@ serial = "0.3"
 mac = "0.0.2"
 enum_primitive = "0.1.0"
 num = "0.1.32"
+
+[[bin]]
+name = "basic"
+path = "examples/01_basic.rs"
