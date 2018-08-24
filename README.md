@@ -44,6 +44,11 @@ fn main() {
 }
 ```
 
+## Resources
+
+- [zwave info compilation](https://github.com/yepher/RaZBerry)
+- [zwave official specifications](http://zwavepublic.com/specifications)
+- https://clemovernet.wordpress.com/2015/08/26/z-wave-definition-des-trames-partie-1/
 ---
 ## Thanks
 * To the [serial-rs](https://github.com/dcuddeback/serial-rs) team - who made this crate possible.

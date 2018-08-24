@@ -8,36 +8,48 @@
 //! The `Controller` provides the functionality to connected
 //! to a Z-Wave network, to send  messages and to receive them.
 
-pub use cmds::powerlevel::PowerLevelStatus;
 pub use cmds::powerlevel::PowerLevelOperationStatus;
+pub use cmds::powerlevel::PowerLevelStatus;
 pub use cmds::MeterData;
 
-use driver::{Driver, GenericType};
-use cmds::{CommandClass};
-use error::Error;
-use cmds::info::NodeInfo;
 use cmds::basic::Basic;
-use cmds::switch_binary::SwitchBinary;
-use cmds::powerlevel::PowerLevel;
+use cmds::info::NodeInfo;
 use cmds::meter::Meter;
+use cmds::powerlevel::PowerLevel;
+use cmds::switch_binary::SwitchBinary;
+use cmds::CommandClass;
+use driver::serial::SerialMsg;
+use driver::{Driver, GenericType};
+use error::Error;
 
-use std::rc::Rc;
 use std::cell::RefCell;
 use std::clone::Clone;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::{thread, time};
 
-#[derive(Debug, Clone)]
-pub struct Controller<D> where D: Driver {
-    driver: Rc<RefCell<D>>,
-    nodes: Rc<RefCell<Vec<Node<D>>>>
+pub trait Handler: Send {
+    fn handle(self, msg: SerialMsg);
 }
 
-impl<D> Controller<D> where D: Driver {
+#[derive(Debug, Clone)]
+pub struct Controller<D>
+where
+    D: Driver,
+{
+    driver: Arc<Mutex<D>>,
+    nodes: Rc<RefCell<Vec<Node<D>>>>,
+}
 
+impl<D> Controller<D>
+where
+    D: Driver + Send + 'static,
+{
     /// Generate a new Controller to interface with the z-wave network.
     pub fn new(driver: D) -> Result<Controller<D>, Error> {
         let controller = Controller {
-            driver: Rc::new(RefCell::new(driver)),
-            nodes: Rc::new(RefCell::new(vec!()))
+            driver: Arc::new(Mutex::new(driver)),
+            nodes: Rc::new(RefCell::new(vec![])),
         };
 
         controller.discover_nodes()?;
@@ -51,22 +63,25 @@ impl<D> Controller<D> where D: Driver {
         self.nodes.borrow_mut().clear();
 
         // get all node id's which are in the network
-        let ids = self.driver.borrow_mut().get_node_ids()?;
+        let ids = self.driver.lock().unwrap().get_node_ids()?;
 
         // create a node object for each id
         for i in ids {
             // create the node for the given id
-            self.nodes.borrow_mut().push(Node::new(self.driver.clone(), i as u8));
+            self.nodes
+                .borrow_mut()
+                .push(Node::new(self.driver.clone(), i as u8));
         }
 
         // when everything went well, return no error
         Ok(())
     }
-
     /// This function returns the defined node and a mutable reference
     /// to the z-wave driver.
     pub fn node<I>(&mut self, id: I) -> Option<Node<D>>
-    where I: Into<u8> {
+    where
+        I: Into<u8>,
+    {
         let id = id.into();
 
         // loop over all nodes and check if the id exist
@@ -84,28 +99,58 @@ impl<D> Controller<D> where D: Driver {
     /// Return all node ids
     pub fn nodes(&self) -> Vec<u8> {
         // get all node ids
-        self.nodes.borrow().iter().map(|n| n.id).collect::<Vec<u8>>()
+        self.nodes
+            .borrow()
+            .iter()
+            .map(|n| n.id)
+            .collect::<Vec<u8>>()
+    }
+
+    pub fn handle_messages(&self, h: Box<Fn(SerialMsg) + Send>) {
+        let driver = self.driver.clone();
+        let duration = time::Duration::from_millis(50);
+
+        thread::spawn(move || loop {
+            {
+                let mut m_driver = driver.lock().unwrap();
+
+                loop {
+                    match m_driver.read() {
+                        Ok(msg) => h(msg),
+                        Err(_) => break,
+                    }
+                }
+            }
+
+            thread::sleep(duration);
+        });
     }
 }
 
 /************************** Node Area *********************/
 
 #[derive(Debug)]
-pub struct Node<D> where D: Driver {
-    driver: Rc<RefCell<D>>,
+pub struct Node<D>
+where
+    D: Driver,
+{
+    driver: Arc<Mutex<D>>,
     id: u8,
     types: Vec<GenericType>,
-    cmds: Vec<CommandClass>
+    cmds: Vec<CommandClass>,
 }
 
-impl<D> Node<D> where D: Driver {
+impl<D> Node<D>
+where
+    D: Driver,
+{
     // Create a new node.
-    pub fn new(driver: Rc<RefCell<D>>, id: u8) -> Node<D>{
+    pub fn new(driver: Arc<Mutex<D>>, id: u8) -> Node<D> {
         let mut node = Node {
             driver: driver,
             id: id,
-            types: vec!(),
-            cmds: vec!()
+            types: vec![],
+            cmds: vec![],
         };
 
         // update the node information
@@ -136,29 +181,39 @@ impl<D> Node<D> where D: Driver {
 
     /// This function returns the GenericType for the node and the CommandClass.
     pub fn node_info_get(&self) -> Result<(Vec<GenericType>, Vec<CommandClass>), Error> {
+        let mut driver = self.driver.lock().unwrap();
+
         // Send the command
-        self.driver.borrow_mut().write(NodeInfo::get(self.id))?;
+        driver.write(NodeInfo::get(self.id))?;
 
         // Receive the result
-        let msg = self.driver.borrow_mut().read()?;
+        let msg = driver.read()?;
 
         // convert and return it
-        NodeInfo::report(msg)
+        NodeInfo::report(msg.data)
     }
 
     /// This function sets the basic status of the node.
     pub fn basic_set<V>(&self, value: V) -> Result<u8, Error>
-    where V: Into<u8> {
+    where
+        V: Into<u8>,
+    {
         // Send the command
-        self.driver.borrow_mut().write(Basic::set(self.id, value.into()))
+        self.driver
+            .lock()
+            .unwrap()
+            .write(Basic::set(self.id, value.into()))
     }
 
     pub fn basic_get(&self) -> Result<u8, Error> {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(Basic::get(self.id))?;
-
+        driver.write(Basic::get(self.id))?;
         // read the answer and convert it
-        Basic::report(self.driver.borrow_mut().read()?)
+        match driver.read() {
+            Ok(msg) => Basic::report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// The Binary Switch Command Class is used to control devices with On/Off
@@ -166,9 +221,14 @@ impl<D> Node<D> where D: Driver {
     ///
     /// The Binary Switch Set command, version 1 is used to set a binary value.
     pub fn switch_binary_set<V>(&self, value: V) -> Result<u8, Error>
-    where V: Into<bool> {
+    where
+        V: Into<bool>,
+    {
         // Send the command
-        self.driver.borrow_mut().write(SwitchBinary::set(self.id, value))
+        self.driver
+            .lock()
+            .unwrap()
+            .write(SwitchBinary::set(self.id, value))
     }
 
     /// The Binary Switch Command Class is used to control devices with On/Off
@@ -177,11 +237,14 @@ impl<D> Node<D> where D: Driver {
     /// The Binary Switch Get command, version 1 is used to request the status
     /// of a device with On/Off or Enable/Disable capability.
     pub fn switch_binary_get(&self) -> Result<bool, Error> {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(SwitchBinary::get(self.id))?;
-
+        driver.write(SwitchBinary::get(self.id))?;
         // read the answer and convert it
-        SwitchBinary::report(self.driver.borrow_mut().read()?)
+        match driver.read() {
+            Ok(msg) => SwitchBinary::report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// The Powerlevel Set Command is used to set the power level indicator value,
@@ -190,21 +253,31 @@ impl<D> Node<D> where D: Driver {
     /// by the application.
     ///
     /// The seconds defines how many seconds the device stays in the defined powerlevel.
-    pub fn powerlevel_set<S, T>(&self, status:S, seconds:T) -> Result<u8, Error>
-    where S: Into<PowerLevelStatus>, T: Into<u8> {
+    pub fn powerlevel_set<S, T>(&self, status: S, seconds: T) -> Result<u8, Error>
+    where
+        S: Into<PowerLevelStatus>,
+        T: Into<u8>,
+    {
         // Send the command
-        self.driver.borrow_mut().write(PowerLevel::set(self.id, status, seconds))
+        self.driver
+            .lock()
+            .unwrap()
+            .write(PowerLevel::set(self.id, status, seconds))
     }
 
     /// This command is used to advertise the current power level.
     ///
     /// Return the Powerlevel status and the time left on this power level.
     pub fn powerlevel_get(&self) -> Result<(PowerLevelStatus, u8), Error> {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(PowerLevel::get(self.id))?;
+        driver.write(PowerLevel::get(self.id))?;
 
         // read the answer and convert it
-        PowerLevel::report(self.driver.borrow_mut().read()?)
+        match driver.read() {
+            Ok(msg) => PowerLevel::report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// The Powerlevel Test Node Set Command is used to instruct the destination node to transmit
@@ -218,10 +291,24 @@ impl<D> Node<D> where D: Driver {
     /// level: The power level indicator value to use in the test frame transmission.
     /// test_frames: The Test frame count field contains the number of test frames to transmit to
     ///              the Test NodeID. The first byte is the most significant byte.
-    pub fn powerlevel_test_node_set<T, L, F>(&self, test_node_id: T, level: L, test_frames: F) -> Result<u8, Error>
-    where T: Into<u8>, L: Into<PowerLevelStatus>, F: Into<u16> {
+    pub fn powerlevel_test_node_set<T, L, F>(
+        &self,
+        test_node_id: T,
+        level: L,
+        test_frames: F,
+    ) -> Result<u8, Error>
+    where
+        T: Into<u8>,
+        L: Into<PowerLevelStatus>,
+        F: Into<u16>,
+    {
         // Send the command
-        self.driver.borrow_mut().write(PowerLevel::test_node_set(self.id, test_node_id, level, test_frames))
+        self.driver.lock().unwrap().write(PowerLevel::test_node_set(
+            self.id,
+            test_node_id,
+            level,
+            test_frames,
+        ))
     }
 
     /// This command is used to report the latest result of a test frame
@@ -229,11 +316,19 @@ impl<D> Node<D> where D: Driver {
     ///
     /// Return the test node id, status of operation and the test frane count.
     pub fn powerlevel_test_node_get(&self) -> Result<(u8, PowerLevelOperationStatus, u16), Error> {
+        let mut driver = self.driver.lock().unwrap();
+
         // Send the command
-        self.driver.borrow_mut().write(PowerLevel::test_node_get(self.id))?;
+        self.driver
+            .lock()
+            .unwrap()
+            .write(PowerLevel::test_node_get(self.id))?;
 
         // read the answer and convert it
-        PowerLevel::test_node_report(self.driver.borrow_mut().read()?)
+        match driver.read() {
+            Ok(msg) => PowerLevel::test_node_report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// A meter is used to monitor a resource. The meter accumulates the resource flow over time.
@@ -244,11 +339,15 @@ impl<D> Node<D> where D: Driver {
     /// The Meter Get Command is used to request the accumulated consumption in physical units
     /// from a metering device.
     pub fn meter_get(&self) -> Result<MeterData, Error> {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(Meter::get(self.id))?;
+        driver.write(Meter::get(self.id))?;
 
         // read the answer and convert it
-        Meter::report(self.driver.borrow_mut().read()?)
+        match driver.read() {
+            Ok(msg) => Meter::report(msg.data),
+            Err(err) => Err(err),
+        }
     }
 
     /// A meter is used to monitor a resource. The meter accumulates the resource flow over time.
@@ -259,24 +358,32 @@ impl<D> Node<D> where D: Driver {
     /// The Meter Get Command is used to request the accumulated consumption in physical units
     /// from a metering device.
     pub fn meter_get_v2<S>(&self, meter_type: S) -> Result<(MeterData, u16, MeterData), Error>
-    where S: Into<MeterData> {
+    where
+        S: Into<MeterData>,
+    {
+        let mut driver = self.driver.lock().unwrap();
         // Send the command
-        self.driver.borrow_mut().write(Meter::get_v2(self.id, meter_type.into()))?;
+        driver.write(Meter::get_v2(self.id, meter_type.into()))?;
 
         // read the answer and convert it
-        Meter::report_v2(self.driver.borrow_mut().read()?)
+        match driver.read() {
+            Ok(msg) => Meter::report_v2(msg.data),
+            Err(err) => Err(err),
+        }
     }
 }
 
-
-impl<D> Clone for Node<D> where D: Driver {
+impl<D> Clone for Node<D>
+where
+    D: Driver,
+{
     /// We need to implement Clone manually because of a bugin rust
     fn clone(&self) -> Node<D> {
         Node {
             driver: self.driver.clone(),
             id: self.id,
             types: self.types.clone(),
-            cmds: self.cmds.clone()
+            cmds: self.cmds.clone(),
         }
     }
 }

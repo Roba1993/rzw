@@ -1,18 +1,17 @@
-
 //! Serial Driver implementation to communicate with the serial Z-Wave devices.
 // `header, length, type(rx|tx), zw-function, data, transmit-type, message-id, checksum`
 //
 // ZWave data structure for basic
 // `device, data-length, comand class, command, value`
 
-use num::FromPrimitive;
-use error::{Error, ErrorKind};
-use serial::{self, SystemPort, SerialPort};
-use std::io::{Write, Read};
-use std::time::Duration;
 use driver::{Driver, GenericType};
-use std::io::ErrorKind as StdErrorKind;
+use error::{Error, ErrorKind};
+use num::FromPrimitive;
+use serial::{self, SerialPort, SystemPort};
 use std::fmt;
+use std::io::ErrorKind as StdErrorKind;
+use std::io::{Read, Write};
+use std::time::Duration;
 
 pub struct SerialDriver {
     // serial port
@@ -22,14 +21,16 @@ pub struct SerialDriver {
     // message store
     messages: Vec<SerialMsg>,
     // serial driver path
-    path: String
+    path: String,
 }
 
 impl SerialDriver {
     /// Creates a new SerialDriver which is a connection point to
     /// ZWave device & network.
     pub fn new<P>(path: P) -> Result<SerialDriver, Error>
-        where P: Into<String> {
+    where
+        P: Into<String>,
+    {
         // get the path
         let path = path.into();
 
@@ -53,8 +54,8 @@ impl SerialDriver {
         let driver = SerialDriver {
             port: port,
             message_id: 0x00,
-            messages: vec!(),
-            path: path
+            messages: vec![],
+            path: path,
         };
 
         // return it
@@ -81,7 +82,7 @@ impl SerialDriver {
         // buffer to read each byte in
         let mut buf = [0u8; 1];
         // result vector
-        let mut result : Vec<u8> = Vec::new();
+        let mut result: Vec<u8> = Vec::new();
 
         // try to read the first byte
         self.port.read(&mut buf)?;
@@ -111,11 +112,19 @@ impl SerialDriver {
 
             // if it was successfull return ACK
             if m.is_ok() {
-                self.port.write(SerialMsg::new_header(SerialMsgHeader::ACK).get_command().as_slice())?;
+                self.port.write(
+                    SerialMsg::new_header(SerialMsgHeader::ACK)
+                        .get_command()
+                        .as_slice(),
+                )?;
             }
             // if there occoured an error send back a NAK
             else {
-                self.port.write(SerialMsg::new_header(SerialMsgHeader::NAK).get_command().as_slice())?;
+                self.port.write(
+                    SerialMsg::new_header(SerialMsgHeader::NAK)
+                        .get_command()
+                        .as_slice(),
+                )?;
             }
 
             //return the message
@@ -135,13 +144,16 @@ impl SerialDriver {
         }
 
         // if the header is unknown return a error
-        Err(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave header detected"))
+        Err(Error::new(
+            ErrorKind::UnknownZWave,
+            "Unknown ZWave header detected",
+        ))
     }
 
     /// Reads a single message from the zwave driver. It retries to read after a timeout as defined.
     fn read_single_msg_rty(&mut self, tries: &i32) -> Result<SerialMsg, Error> {
         // set the variable to count
-        let mut counter : i32 = tries.clone();
+        let mut counter: i32 = tries.clone();
         loop {
             // throw an error when we tried to read too much
             if counter <= 0 {
@@ -156,11 +168,10 @@ impl SerialDriver {
                 Err(e) => {
                     if e.kind() == ErrorKind::Io(StdErrorKind::TimedOut) {
                         continue;
-                    }
-                    else {
+                    } else {
                         return Err(e);
                     }
-                },
+                }
                 // on message recveive check if it's
                 Ok(m) => {
                     return Ok(m);
@@ -179,16 +190,19 @@ impl SerialDriver {
                 Err(e) => {
                     if e.kind() != ErrorKind::Io(StdErrorKind::TimedOut) {
                         return Err(e);
-                    }
-                    else {
+                    } else {
                         return Ok(true);
                     }
-                },
+                }
                 // store the message to the table
                 Ok(m) => {
                     // Can't handle this data type right now - needs a recheck
-                    if m.header == SerialMsgHeader::SOF && m.typ == SerialMsgType::Request &&
-                            m.func == SerialMsgFunction::SendData && m.data[1] == 0 && m.data[2] == 0 {
+                    if m.header == SerialMsgHeader::SOF
+                        && m.typ == SerialMsgType::Request
+                        && m.func == SerialMsgFunction::SendData
+                        && m.data[1] == 0
+                        && m.data[2] == 0
+                    {
                         continue;
                     }
                     // save incoming messages sorted for the device the message is sent to
@@ -218,7 +232,9 @@ impl SerialDriver {
 
 impl Driver for SerialDriver {
     fn write<M>(&mut self, message: M) -> Result<u8, Error>
-        where M: Into<Vec<u8>> {
+    where
+        M: Into<Vec<u8>>,
+    {
         // read all messages to clean the driver pipe
         self.read_all_msg()?;
 
@@ -245,12 +261,15 @@ impl Driver for SerialDriver {
             // on error return it
             Err(e) => {
                 return Err(e);
-            },
+            }
             // check the message
             Ok(m) => {
                 // when wrong header is received
                 if m.header != SerialMsgHeader::ACK {
-                    return Err(Error::new(ErrorKind::Io(StdErrorKind::InvalidData), "The driver refused the data - No ACK package"))
+                    return Err(Error::new(
+                        ErrorKind::Io(StdErrorKind::InvalidData),
+                        "The driver refused the data - No ACK package",
+                    ));
                 }
             }
         }
@@ -260,12 +279,19 @@ impl Driver for SerialDriver {
             // on error return it
             Err(e) => {
                 return Err(e);
-            },
+            }
             // check the message
             Ok(m) => {
                 // when wrong message is received
-                if m.header != SerialMsgHeader::SOF || m.typ != SerialMsgType::Response || m.func != SerialMsgFunction::SendData || m.data != vec!(0x01u8) {
-                    return Err(Error::new(ErrorKind::Io(StdErrorKind::InvalidData), "The driver refused the data - Negative response message"));
+                if m.header != SerialMsgHeader::SOF
+                    || m.typ != SerialMsgType::Response
+                    || m.func != SerialMsgFunction::SendData
+                    || m.data != vec![0x01u8]
+                {
+                    return Err(Error::new(
+                        ErrorKind::Io(StdErrorKind::InvalidData),
+                        "The driver refused the data - Negative response message",
+                    ));
                 }
             }
         }
@@ -274,17 +300,20 @@ impl Driver for SerialDriver {
         Ok(m_id)
     }
 
-    fn read(&mut self) -> Result<Vec<u8>, Error> {
+    fn read(&mut self) -> Result<SerialMsg, Error> {
         // read all messages to clean the driver pipe
         self.read_all_msg()?;
 
         // check if a message is available
         if self.messages.len() < 1 {
-            return Err(Error::new(ErrorKind::Io(StdErrorKind::Other), "No message with the given id received"));
+            return Err(Error::new(
+                ErrorKind::Io(StdErrorKind::Other),
+                "No message with the given id received",
+            ));
         }
 
         // return the first message
-        Ok(self.messages.remove(0).data)
+        Ok(self.messages.remove(0))
     }
 
     fn get_node_ids(&mut self) -> Result<Vec<u8>, Error> {
@@ -292,7 +321,11 @@ impl Driver for SerialDriver {
         self.read_all_msg()?;
 
         // create the serial message
-        let msg = SerialMsg::new(SerialMsgType::Request, SerialMsgFunction::DiscoveryNodes, vec!());
+        let msg = SerialMsg::new(
+            SerialMsgType::Request,
+            SerialMsgFunction::DiscoveryNodes,
+            vec![],
+        );
 
         // send the value
         self.port.write(msg.get_command().as_slice())?;
@@ -301,10 +334,13 @@ impl Driver for SerialDriver {
         match self.read_single_msg_rty(&5) {
             Err(e) => {
                 return Err(e);
-            },
+            }
             Ok(m) => {
                 if m.header != SerialMsgHeader::ACK {
-                    return Err(Error::new(ErrorKind::Io(StdErrorKind::InvalidData), "The driver refused the data - No ACK package"));
+                    return Err(Error::new(
+                        ErrorKind::Io(StdErrorKind::InvalidData),
+                        "The driver refused the data - No ACK package",
+                    ));
                 }
             }
         }
@@ -317,7 +353,10 @@ impl Driver for SerialDriver {
 
         // check if the data is long enough and if the right bit is set
         if data.len() != 34 || data[2] != 0x1D {
-            return Err(Error::new(ErrorKind::UnknownZWave, "The ZWave message has a wrong format"));
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                "The ZWave message has a wrong format",
+            ));
         }
 
         // create the return variable
@@ -330,7 +369,7 @@ impl Driver for SerialDriver {
                 // check if the bit is set
                 if self.get_bit_at(data[i], j) {
                     // calc the number out of the bitmask
-                    let n = ((i-3) * 8) + (j as usize+1);
+                    let n = ((i - 3) * 8) + (j as usize + 1);
                     // add the node to the vector
                     nodes.push(n as u8);
                 }
@@ -342,12 +381,18 @@ impl Driver for SerialDriver {
     }
 
     fn get_node_generic_class<N>(&mut self, node_id: N) -> Result<GenericType, Error>
-        where N: Into<u8> {
+    where
+        N: Into<u8>,
+    {
         // read all messages to clean the driver pipe
         self.read_all_msg()?;
 
         // create the serial message
-        let msg = SerialMsg::new(SerialMsgType::Request, SerialMsgFunction::GetNodeProtocolInfo, vec!(node_id.into()));
+        let msg = SerialMsg::new(
+            SerialMsgType::Request,
+            SerialMsgFunction::GetNodeProtocolInfo,
+            vec![node_id.into()],
+        );
 
         // send the value
         self.port.write(msg.get_command().as_slice())?;
@@ -356,10 +401,13 @@ impl Driver for SerialDriver {
         match self.read_single_msg_rty(&5) {
             Err(e) => {
                 return Err(e);
-            },
+            }
             Ok(m) => {
                 if m.header != SerialMsgHeader::ACK {
-                    return Err(Error::new(ErrorKind::Io(StdErrorKind::InvalidData), "The driver refused the data - No ACK package"));
+                    return Err(Error::new(
+                        ErrorKind::Io(StdErrorKind::InvalidData),
+                        "The driver refused the data - No ACK package",
+                    ));
                 }
             }
         }
@@ -372,7 +420,10 @@ impl Driver for SerialDriver {
 
         //check if the answer has the right length && is no error
         if data.len() != 6 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "The ZWave message has a wrong format"));
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                "The ZWave message has a wrong format",
+            ));
         }
 
         // extract the delivered type and return it
@@ -391,7 +442,7 @@ pub struct SerialMsg {
     pub header: SerialMsgHeader,
     pub typ: SerialMsgType,
     pub func: SerialMsgFunction,
-    pub data: Vec<u8>
+    pub data: Vec<u8>,
 }
 
 impl SerialMsg {
@@ -401,7 +452,7 @@ impl SerialMsg {
             header: SerialMsgHeader::SOF,
             typ: typ,
             func: func,
-            data: data
+            data: data,
         }
     }
 
@@ -411,7 +462,7 @@ impl SerialMsg {
             header: header,
             typ: SerialMsgType::Response,
             func: SerialMsgFunction::None,
-            data: vec!()
+            data: vec![],
         }
     }
 
@@ -419,11 +470,17 @@ impl SerialMsg {
     pub fn parse(data: &[u8]) -> Result<SerialMsg, Error> {
         // check if the data has a header
         if data.len() < 1 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "No message delivered, at least a head is needed"));
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                "No message delivered, at least a head is needed",
+            ));
         }
 
         // try to parse the header
-        let header = SerialMsgHeader::from_u8(data[0]).ok_or(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave header detected"))?;
+        let header = SerialMsgHeader::from_u8(data[0]).ok_or(Error::new(
+            ErrorKind::UnknownZWave,
+            "Unknown ZWave header detected",
+        ))?;
 
         // return message if there is no start of frame header
         if header != SerialMsgHeader::SOF {
@@ -432,7 +489,10 @@ impl SerialMsg {
 
         // check if the message is long enough for a SOF message
         if data.len() < 5 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Data is too short for a ZWave message with SOF header"));
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                "Data is too short for a ZWave message with SOF header",
+            ));
         }
 
         // check if the data is as long as the given length
@@ -441,21 +501,28 @@ impl SerialMsg {
         }
 
         // check if the checksum is right for the message
-        if SerialMsg::checksum(&data[0 .. (data.len()-1)]) != data[data.len()-1] {
-            return Err(Error::new(ErrorKind::UnknownZWave, "The checksum didn't match to the message"));
+        if SerialMsg::checksum(&data[0..(data.len() - 1)]) != data[data.len() - 1] {
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                "The checksum didn't match to the message",
+            ));
         }
 
         // try to parse the type
-        let typ = SerialMsgType::from_u8(data[2]).ok_or(Error::new(ErrorKind::UnknownZWave, "Unknown message type"))?;
+        let typ = SerialMsgType::from_u8(data[2])
+            .ok_or(Error::new(ErrorKind::UnknownZWave, "Unknown message type"))?;
 
         // try to parse the function
-        let function = SerialMsgFunction::from_u8(data[3]).ok_or(Error::new(ErrorKind::UnknownZWave, "Unknown ZWave function detected"))?;
+        let function = SerialMsgFunction::from_u8(data[3]).ok_or(Error::new(
+            ErrorKind::UnknownZWave,
+            "Unknown ZWave function detected",
+        ))?;
 
         // create the message data array
-        let msg_data : &[u8];
+        let msg_data: &[u8];
         // when there is data extract it
         if data.len() > 5 {
-            msg_data = &data[4 .. (data.len()-1)];
+            msg_data = &data[4..(data.len() - 1)];
         }
         // if not create a empty array
         else {
@@ -474,7 +541,12 @@ impl SerialMsg {
         }
 
         // create the header, length, typ and ZWave function
-        let mut buf: Vec<u8> = vec![self.header as u8, (self.data.len()+3) as u8, self.typ as u8, self.func as u8];
+        let mut buf: Vec<u8> = vec![
+            self.header as u8,
+            (self.data.len() + 3) as u8,
+            self.typ as u8,
+            self.func as u8,
+        ];
 
         // append the data
         buf.append(&mut self.data.clone());
@@ -504,7 +576,7 @@ impl SerialMsg {
 
     /// Returns the checksum for the given vector
     pub fn checksum(data: &[u8]) -> u8 {
-        let mut ret : u8 = 0xFF;
+        let mut ret: u8 = 0xFF;
 
         for i in 1..data.len() {
             ret ^= data[i];

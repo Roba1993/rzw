@@ -19,20 +19,21 @@ use error::Error;
 pub trait Driver {
     /// Write data to the Z-Wave network.
     fn write<N>(&mut self, N) -> Result<u8, Error>
-        where N: Into<Vec<u8>>;
+    where
+        N: Into<Vec<u8>>;
 
     /// Read data from the Z-Wave network.
     /// Returns the received message or an error.
-    fn read(&mut self) -> Result<Vec<u8>, Error>;
+    fn read(&mut self) -> Result<serial::SerialMsg, Error>;
 
     /// Returns the id of the registered nodes in the Z-Wave network.
     fn get_node_ids(&mut self) -> Result<Vec<u8>, Error>;
 
     /// Returns the generic type of a node.
     fn get_node_generic_class<N>(&mut self, N) -> Result<GenericType, Error>
-        where N: Into<u8>;
+    where
+        N: Into<u8>;
 }
-
 
 /// List of the generic node types
 enum_from_primitive! {

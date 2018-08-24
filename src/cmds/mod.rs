@@ -10,13 +10,12 @@
 
 pub mod basic;
 pub mod info;
-pub mod switch_binary;
 pub mod meter;
 pub mod powerlevel;
+pub mod switch_binary;
 
 use enum_primitive::FromPrimitive;
 use error::{Error, ErrorKind};
-
 
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -153,7 +152,7 @@ pub enum MeterData {
     Water_meter2(f64),
     Water_feet2(f64),
     Water_Gallons(f64),
-    Water_PulseCount(f64)
+    Water_PulseCount(f64),
 }
 
 impl MeterData {
@@ -174,7 +173,6 @@ impl MeterData {
     }
 }
 
-
 /// ZWave message to write and read
 ///
 /// The message represent a ZWave message which can be sent or received.
@@ -194,22 +192,41 @@ pub struct Message {
     pub node_id: u8,
     pub cmd_class: CommandClass,
     pub cmd: u8,
-    pub data: Vec<u8>
+    pub data: Vec<u8>,
+    pub raw: Vec<u8>,
 }
 
 impl Message {
-    /// create a new message
     pub fn new(node_id: u8, cmd_class: CommandClass, cmd: u8, data: Vec<u8>) -> Message {
         Message {
             node_id: node_id,
             cmd_class: cmd_class,
             cmd: cmd,
-            data: data
+            data: data,
+            raw: Vec::new(),
+        }
+    }
+
+    /// create a new message
+    pub fn new_with_raw(
+        node_id: u8,
+        cmd_class: CommandClass,
+        cmd: u8,
+        data: Vec<u8>,
+        raw: Vec<u8>,
+    ) -> Message {
+        Message {
+            node_id: node_id,
+            cmd_class: cmd_class,
+            cmd: cmd,
+            data: data,
+            raw: raw,
         }
     }
 
     /// Parse a `&[u8]` slice and try to convert it to a `Message`
     pub fn parse(data: &[u8]) -> Result<Message, Error> {
+        let raw = data.to_vec();
         // check if the data is avilable
         if data.len() < 1 {
             return Err(Error::new(ErrorKind::UnknownZWave, "Message has no data"));
@@ -221,24 +238,25 @@ impl Message {
         }
 
         // check if the length flag matches
-        if data.len() - 2 != data[1] as usize {
-            return Err(Error::new(ErrorKind::UnknownZWave, "The length of the message delivered didn't match with the actual length"));
-        }
+        //if data.len() - 2 != data[1] as usize {
+        //    return Err(Error::new(ErrorKind::UnknownZWave, "The length of the message delivered didn't match with the actual length"));
+        //}
 
         // get the node id
-        let node_id = data[0];
+        let node_id = data[1];
 
         // get the commadn class
-        let cmd_class = CommandClass::from_u8(data[2]).unwrap_or(CommandClass::NO_OPERATION);
+        let cmd_class = CommandClass::from_u8(data[3]).unwrap_or(CommandClass::NO_OPERATION);
 
         // get the command
         let cmd = data[3];
 
         // create the message data array
-        let msg_data : &[u8];
+        let msg_data: &[u8];
+
         // when there is data extract it
         if data.len() > 4 {
-            msg_data = &data[4 .. (data.len())];
+            msg_data = &data[4..(data.len())];
         }
         // if not create a empty array
         else {
@@ -246,15 +264,21 @@ impl Message {
         }
 
         // create a new Message and return it
-        Ok(Message::new(node_id, cmd_class, cmd, msg_data.to_vec()))
+        Ok(Message::new_with_raw(
+            node_id,
+            cmd_class,
+            cmd,
+            msg_data.to_vec(),
+            raw,
+        ))
     }
 
     /// Return the message as Vec<u8>
     pub fn to_vec(&self) -> Vec<u8> {
         // todo check if there a better way
-        let mut v : Vec<u8> = Vec::new();
+        let mut v: Vec<u8> = Vec::new();
         v.push(self.node_id);
-        v.push((self.data.len()+2) as u8);
+        v.push((self.data.len() + 2) as u8);
         v.push(self.cmd_class as u8);
         v.push(self.cmd);
         v.append(&mut self.data.clone());
