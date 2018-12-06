@@ -28,10 +28,10 @@ impl SwitchMultilevel {
         // get the message
         let msg = msg.into();
 
-        // the message need to be exact 6 digits long
-        // if msg.len() != 6 {
-        //     return Err(Error::new(ErrorKind::UnknownZWave, "Message is to short"));
-        // }
+        // the message need to be at least 7 digits long
+        if msg.len() < 7 {
+             return Err(Error::new(ErrorKind::UnknownZWave, "Message is to short"));
+        }
 
         // check the CommandClass and command
         if msg[3] != CommandClass::SWITCH_MULTILEVEL as u8 || msg[4] != 0x03 {
