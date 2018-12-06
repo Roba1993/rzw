@@ -17,6 +17,7 @@ use cmds::info::NodeInfo;
 use cmds::meter::Meter;
 use cmds::powerlevel::PowerLevel;
 use cmds::switch_binary::SwitchBinary;
+use cmds::switch_multilevel::SwitchMultilevel;
 use cmds::CommandClass;
 use driver::serial::SerialMsg;
 use driver::{Driver, GenericType};
@@ -243,6 +244,37 @@ where
         // read the answer and convert it
         match driver.read() {
             Ok(msg) => SwitchBinary::report(msg.data),
+            Err(err) => Err(err),
+        }
+    }
+
+    /// The Multilevel Switch Command Class is used to control devices with variable levels
+    /// such as dimmer switches
+    ///
+    /// The Multilevel Switch Set command, version 1 is used to set a u8 value.
+    pub fn switch_multilevel_set<V>(&self, value: V) -> Result<u8, Error>
+    where
+        V: Into<u8>,
+    {
+        // Send the command
+        self.driver
+            .lock()
+            .unwrap()
+            .write(SwitchMultilevel::set(self.id, value))
+    }
+
+    /// The Multilevel Switch Command Class is used to control devices with variable levels
+    /// such as dimmer switches
+    ///
+    /// The Multilevel Switch Get command, version 1 is used to request the status
+    /// of a device with variable levels capability.
+    pub fn switch_multilevel_get(&self) -> Result<u8, Error> {
+        let mut driver = self.driver.lock().unwrap();
+        // Send the command
+        driver.write(SwitchMultilevel::get(self.id))?;
+        // read the answer and convert it
+        match driver.read() {
+            Ok(msg) => SwitchMultilevel::report(msg.data),
             Err(err) => Err(err),
         }
     }
