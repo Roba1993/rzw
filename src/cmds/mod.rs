@@ -13,6 +13,7 @@ pub mod info;
 pub mod meter;
 pub mod powerlevel;
 pub mod switch_binary;
+pub mod switch_multilevel;
 
 use enum_primitive::FromPrimitive;
 use error::{Error, ErrorKind};
