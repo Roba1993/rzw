@@ -57,19 +57,21 @@ extern crate num;
 extern crate serial;
 
 // load all internal dependencies, which are used
-pub mod error;
-pub mod driver;
-pub mod cmds;
 pub mod basic;
+pub mod cmds;
+pub mod driver;
+pub mod error;
 
 // lead mods which are used
-use driver::serial::SerialDriver;
 use basic::Controller;
+use driver::serial::SerialDriver;
 use error::Error;
 
 /// Function to start a Z-Wave Controller
 pub fn open<P>(path: P) -> Result<Controller<SerialDriver>, Error>
-    where P: Into<String> {
+where
+    P: Into<String>,
+{
     // Generate a new Serial driver
     let driver = SerialDriver::new(path.into())?;
 

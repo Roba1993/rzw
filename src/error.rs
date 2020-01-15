@@ -2,16 +2,16 @@
 //!
 //! These error type is compatible with the rust standard io `ErrorKind`.
 
-use std::io;
-use std::fmt;
-use std::error::Error as StdError;
-use serial::Error as SerError;
 use serial;
+use serial::Error as SerError;
+use std::error::Error as StdError;
+use std::fmt;
+use std::io;
 
 /// Categories of errors that can occur when interacting with z-Wave.
 ///
 /// This list is intended to grow over time and it is not recommended to exhaustively match against it.
-#[derive(Debug,Clone,Copy,PartialEq,Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
     /// The controller is not available.
     ///
@@ -31,21 +31,21 @@ pub enum ErrorKind {
     /// An I/O error occured.
     ///
     /// The type of I/O error is determined by the inner `io::ErrorKind`.
-    Io(io::ErrorKind)
+    Io(io::ErrorKind),
 }
 
 /// An error type for Z-Wave operations.
 #[derive(Debug, Clone)]
 pub struct Error {
     kind: ErrorKind,
-    description: String
+    description: String,
 }
 
 impl Error {
     pub fn new<T: Into<String>>(kind: ErrorKind, description: T) -> Self {
         Error {
             kind: kind,
-            description: description.into()
+            description: description.into(),
         }
     }
 
@@ -80,7 +80,7 @@ impl From<Error> for io::Error {
             ErrorKind::InvalidInput => io::ErrorKind::InvalidInput,
             ErrorKind::UnknownZWave => io::ErrorKind::InvalidData,
             ErrorKind::NotImplemented => io::ErrorKind::Other,
-            ErrorKind::Io(kind) => kind
+            ErrorKind::Io(kind) => kind,
         };
 
         io::Error::new(kind, error.description)
@@ -92,7 +92,7 @@ impl From<SerError> for Error {
         let kind = match ser_error.kind() {
             serial::ErrorKind::NoDevice => ErrorKind::NoController,
             serial::ErrorKind::InvalidInput => ErrorKind::InvalidInput,
-            serial::ErrorKind::Io(kind) => ErrorKind::Io(kind)
+            serial::ErrorKind::Io(kind) => ErrorKind::Io(kind),
         };
 
         Error::new(kind, ser_error.description())

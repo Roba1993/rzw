@@ -7,8 +7,8 @@
 //! cargo run --example main
 //! ```
 
-extern crate rzw;
 extern crate enum_primitive;
+extern crate rzw;
 
 use std::{thread, time};
 
@@ -17,7 +17,6 @@ static DEVICE: &'static str = "/dev/tty.usbmodem1421";
 
 // the node to switch on/off
 static NODE: u8 = 3;
-
 
 fn main() {
     // only continue with testing if the device path is set
@@ -30,17 +29,39 @@ fn main() {
     let mut zwave = rzw::open(DEVICE).unwrap();
 
     // Turn node on
-    zwave.node(NODE).map(|n| n.switch_binary_set(true)).unwrap().unwrap();
+    zwave
+        .node(NODE)
+        .map(|n| n.switch_binary_set(true))
+        .unwrap()
+        .unwrap();
 
     // get the status
-    println!("Node Status: {:?}", zwave.node(NODE).map(|n| n.switch_binary_get()).unwrap().unwrap());
+    println!(
+        "Node Status: {:?}",
+        zwave
+            .node(NODE)
+            .map(|n| n.switch_binary_get())
+            .unwrap()
+            .unwrap()
+    );
 
     // wait 3 seconds
     thread::sleep(time::Duration::from_secs(3));
 
     // Turn node off
-    zwave.node(NODE).map(|n| n.switch_binary_set(false)).unwrap().unwrap();
+    zwave
+        .node(NODE)
+        .map(|n| n.switch_binary_set(false))
+        .unwrap()
+        .unwrap();
 
     // get the status
-    println!("Node Status: {:?}", zwave.node(NODE).map(|n| n.switch_binary_get()).unwrap().unwrap());
+    println!(
+        "Node Status: {:?}",
+        zwave
+            .node(NODE)
+            .map(|n| n.switch_binary_get())
+            .unwrap()
+            .unwrap()
+    );
 }

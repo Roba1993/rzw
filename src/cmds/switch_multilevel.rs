@@ -9,33 +9,53 @@ pub struct SwitchMultilevel;
 impl SwitchMultilevel {
     /// The Multilevel Switch Set command, version 1 is used to set a u8 value.
     pub fn set<N, V>(node_id: N, value: V) -> Message
-    where N: Into<u8>, V: Into<u8> {
+    where
+        N: Into<u8>,
+        V: Into<u8>,
+    {
         // generate the message
-        Message::new(node_id.into(), CommandClass::SWITCH_MULTILEVEL, 0x01, vec!(value.into()))
+        Message::new(
+            node_id.into(),
+            CommandClass::SWITCH_MULTILEVEL,
+            0x01,
+            vec![value.into()],
+        )
     }
 
     /// The Multilevel Switch Get command, version 1 is used to request the status
     /// of a device with variable levels capability.
     pub fn get<N>(node_id: N) -> Message
-    where N: Into<u8> {
-        Message::new(node_id.into(), CommandClass::SWITCH_MULTILEVEL, 0x02, vec!())
+    where
+        N: Into<u8>,
+    {
+        Message::new(
+            node_id.into(),
+            CommandClass::SWITCH_MULTILEVEL,
+            0x02,
+            vec![],
+        )
     }
 
     /// The Multilevel Switch Report command, version 1 is used to advertise the
     /// status of a device with variable levels capability.
     pub fn report<M>(msg: M) -> Result<u8, Error>
-    where M: Into<Vec<u8>> {
+    where
+        M: Into<Vec<u8>>,
+    {
         // get the message
         let msg = msg.into();
 
         // the message need to be at least 7 digits long
         if msg.len() < 7 {
-             return Err(Error::new(ErrorKind::UnknownZWave, "Message is to short"));
+            return Err(Error::new(ErrorKind::UnknownZWave, "Message is to short"));
         }
 
         // check the CommandClass and command
         if msg[3] != CommandClass::SWITCH_MULTILEVEL as u8 || msg[4] != 0x03 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Answer contained wrong command class"));
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                "Answer contained wrong command class",
+            ));
         }
 
         let val = msg[5];
