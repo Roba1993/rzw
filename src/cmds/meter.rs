@@ -253,8 +253,10 @@ impl Meter {
 
         // transform for four bytes
         if bytes.len() == 4 {
-            return (((((bytes[0] as i32) << 24) | (bytes[1] as i32) << 16) | (bytes[2] as i32) << 8)
-                | (bytes[3] as i32)) as f64 / precision;
+            return (((((bytes[0] as i32) << 24) | (bytes[1] as i32) << 16)
+                | (bytes[2] as i32) << 8)
+                | (bytes[3] as i32)) as f64
+                / precision;
         }
 
         0.0
@@ -352,5 +354,4 @@ mod tests {
             Meter::calc_value(&[0x80, 0x00, 0x00, 0x00], 2)
         );
     }
-
 }

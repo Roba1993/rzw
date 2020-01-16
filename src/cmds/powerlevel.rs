@@ -8,9 +8,8 @@
 //! NOTE: This Command Class is only used in an installation or test situation.
 
 use cmds::{CommandClass, Message};
-use error::{Error, ErrorKind};
 use enum_primitive::FromPrimitive;
-
+use error::{Error, ErrorKind};
 
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -29,7 +28,6 @@ pub enum PowerLevelStatus {
     minus9dBm = 0x09,
 }}
 
-
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -40,11 +38,9 @@ TestSuccess = 0x01, // At least 1 frame was returned during the test
 TestInProgress = 0x02, //The test is still ongoing
 }}
 
-
 /// Power level command class
 #[derive(Debug, Clone)]
 pub struct PowerLevel;
-
 
 impl PowerLevel {
     /// The Powerlevel Set Command is used to set the power level indicator value,
@@ -54,25 +50,36 @@ impl PowerLevel {
     ///
     /// The seconds defines how many seconds the device stays in the defined powerlevel.
     pub fn set<N, L, S>(node_id: N, level: L, seconds: S) -> Message
-    where N: Into<u8>, L: Into<PowerLevelStatus>, S: Into<u8> {
+    where
+        N: Into<u8>,
+        L: Into<PowerLevelStatus>,
+        S: Into<u8>,
+    {
         // generate the message
-        Message::new(node_id.into(), CommandClass::POWER_LEVEL, 0x01, vec!(level.into() as u8, seconds.into()))
+        Message::new(
+            node_id.into(),
+            CommandClass::POWER_LEVEL,
+            0x01,
+            vec![level.into() as u8, seconds.into()],
+        )
     }
-
 
     /// The Powerlevel Get Command is used to request the current power level value.
     /// The Powerlevel Report Command MUST be returned in response to this command.
     pub fn get<N>(node_id: N) -> Message
-    where N: Into<u8> {
-        Message::new(node_id.into(), CommandClass::POWER_LEVEL, 0x02, vec!())
+    where
+        N: Into<u8>,
+    {
+        Message::new(node_id.into(), CommandClass::POWER_LEVEL, 0x02, vec![])
     }
-
 
     /// This command is used to advertise the current power level.
     ///
     /// Return the Powerlevel status and the time left on this power level.
     pub fn report<M>(msg: M) -> Result<(PowerLevelStatus, u8), Error>
-    where M: Into<Vec<u8>> {
+    where
+        M: Into<Vec<u8>>,
+    {
         // get the message
         let msg = msg.into();
 
@@ -83,16 +90,21 @@ impl PowerLevel {
 
         // check the CommandClass and command
         if msg[3] != CommandClass::POWER_LEVEL as u8 || msg[4] != 0x03 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Answer contained wrong command class"));
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                "Answer contained wrong command class",
+            ));
         }
 
         // get the power level state
-        let level = PowerLevelStatus::from_u8(msg[5]).ok_or(Error::new(ErrorKind::UnknownZWave, "Answer contained wrong power level state"))?;
+        let level = PowerLevelStatus::from_u8(msg[5]).ok_or(Error::new(
+            ErrorKind::UnknownZWave,
+            "Answer contained wrong power level state",
+        ))?;
 
         // return the values
         Ok((level, msg[6]))
     }
-
 
     /// The Powerlevel Test Node Set Command is used to instruct the destination node to transmit
     /// a number of test frames to the specified NodeID with the RF power level specified. After
@@ -105,48 +117,79 @@ impl PowerLevel {
     /// level: The power level indicator value to use in the test frame transmission.
     /// test_frames: The Test frame count field contains the number of test frames to transmit to
     ///              the Test NodeID. The first byte is the most significant byte.
-    pub fn test_node_set<N, T, L, F>(node_id: N, test_node_id: T, level: L, test_frames: F) -> Message
-    where N: Into<u8>, T: Into<u8>, L: Into<PowerLevelStatus>, F: Into<u16> {
+    pub fn test_node_set<N, T, L, F>(
+        node_id: N,
+        test_node_id: T,
+        level: L,
+        test_frames: F,
+    ) -> Message
+    where
+        N: Into<u8>,
+        T: Into<u8>,
+        L: Into<PowerLevelStatus>,
+        F: Into<u16>,
+    {
         // transform the test_frame count to byte array
         let frames = PowerLevel::transform_u16_to_array_of_u8(test_frames.into());
 
         // generate the message
-        Message::new(node_id.into(), CommandClass::POWER_LEVEL, 0x04, vec!(test_node_id.into(), level.into() as u8, frames[0], frames[1]))
+        Message::new(
+            node_id.into(),
+            CommandClass::POWER_LEVEL,
+            0x04,
+            vec![
+                test_node_id.into(),
+                level.into() as u8,
+                frames[0],
+                frames[1],
+            ],
+        )
     }
-
 
     /// The Powerlevel Test Node Get Command is used to request the result of the latest Powerlevel
     /// Test. The Powerlevel Test Node Report Command MUST be returned in response to this command.
     pub fn test_node_get<N>(node_id: N) -> Message
-    where N: Into<u8> {
-        Message::new(node_id.into(), CommandClass::POWER_LEVEL, 0x05, vec!())
+    where
+        N: Into<u8>,
+    {
+        Message::new(node_id.into(), CommandClass::POWER_LEVEL, 0x05, vec![])
     }
-
 
     /// This command is used to report the latest result of a test frame
     /// transmission started by the Powerlevel Test Node Set Command.
     ///
     /// Return the test node id, status of operation and the test frane count.
     pub fn test_node_report<M>(msg: M) -> Result<(u8, PowerLevelOperationStatus, u16), Error>
-    where M: Into<Vec<u8>> {
+    where
+        M: Into<Vec<u8>>,
+    {
         // get the message
         let msg = msg.into();
 
         // the message need to be exact 9 digits long
         if msg.len() != 9 {
-            return Err(Error::new(ErrorKind::UnknownZWave, format!("Message is to short: {:?}", msg)));
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                format!("Message is to short: {:?}", msg),
+            ));
         }
 
         // check the CommandClass and command
         if msg[3] != CommandClass::POWER_LEVEL as u8 || msg[4] != 0x06 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Answer contained wrong command class"));
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                "Answer contained wrong command class",
+            ));
         }
 
         // get the test node id
         let n_id = msg[5];
 
         // get the power level state
-        let level = PowerLevelOperationStatus::from_u8(msg[6]).ok_or(Error::new(ErrorKind::UnknownZWave, "Answer contained wrong operation status"))?;
+        let level = PowerLevelOperationStatus::from_u8(msg[6]).ok_or(Error::new(
+            ErrorKind::UnknownZWave,
+            "Answer contained wrong operation status",
+        ))?;
 
         // get the frame count
         let frame = PowerLevel::transform_array_of_u8_to_u16(msg[7], msg[8]);
@@ -155,23 +198,21 @@ impl PowerLevel {
         Ok((n_id, level, frame))
     }
 
-
     /// transform a u16 to a u8 array.
-    fn transform_u16_to_array_of_u8(x:u16) -> [u8;2] {
-        let b1 : u8 = ((x >> 8) & 0xff) as u8;
-        let b2 : u8 = (x & 0xff) as u8;
-        return [b1, b2]
+    fn transform_u16_to_array_of_u8(x: u16) -> [u8; 2] {
+        let b1: u8 = ((x >> 8) & 0xff) as u8;
+        let b2: u8 = (x & 0xff) as u8;
+        return [b1, b2];
     }
 
     /// transform two u8 into a u16 value
-    fn transform_array_of_u8_to_u16(msb:u8, lsb:u8) -> u16 {
+    fn transform_array_of_u8_to_u16(msb: u8, lsb: u8) -> u16 {
         let msb = msb as u16;
         let lsb = lsb as u16;
 
         ((msb << 8) | lsb)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
