@@ -4,35 +4,29 @@
 //!
 //! After it start the example with
 //! ```
-//! cargo run --example main
+//! cargo run --example 01_basic COM3
 //! ```
+//! where `COM3` is the serial port to adress,
+//! this is different for each PC and OS.
 
 extern crate enum_primitive;
 extern crate rzw;
 
 use std::{thread, time};
 
-// edit here the path to your Z-Wave controller device
-static DEVICE: &'static str = "/dev/cu.usbmodem1411";
-
 fn main() {
+    // get all input parameter
+    let args: Vec<String> = std::env::args().collect();
+
     // only continue with testing if the device path is set
-    if DEVICE == "" {
-        println!("Please define a path to your controller in the source code");
+    let port = args.get(1).unwrap();
+    if port == "" {
+        println!("Please define a path as the first parameter");
         return;
     }
 
     // open a zwave controller
-    let mut zwave = rzw::open(DEVICE).unwrap();
-
-    fn handler(msg: rzw::driver::serial::SerialMsg) {
-        println!("message {:?}", msg);
-
-        let parsed = rzw::cmds::Message::parse(&msg.data);
-        println!("message parsed {:?}", parsed);
-    }
-
-    zwave.handle_messages(Box::new(handler));
+    let mut zwave = rzw::open(port).expect("Z-Wave driver can't be started");
 
     // loop over all nodes
     for node_id in zwave.nodes() {
@@ -46,19 +40,15 @@ fn main() {
         // Turn each node on
         zwave
             .node(node_id)
-            .map(|n| n.basic_set(0x00))
+            .map(|n| n.basic_set(0x01))
             .unwrap()
             .unwrap();
 
         // Get the status for each node
         println!(
-            "Node 3 Status: {:?}",
+            "Node {} Status: {:?}",
+            node_id,
             zwave.node(node_id).map(|n| n.basic_get())
         );
-    }
-
-    loop {
-        let duration = time::Duration::from_millis(50);
-        thread::sleep(duration);
     }
 }

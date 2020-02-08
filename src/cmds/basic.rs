@@ -25,9 +25,15 @@ impl Basic {
         // get the message
         let msg = msg.into();
 
-        // the message need to be exact 6 digits long
-        if msg.len() >= 5 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Message is too short"));
+        // the message need to be at least 5 bytes long
+        if msg.len() < 5 {
+            return Err(Error::new(
+                ErrorKind::UnknownZWave,
+                format!(
+                    "Message is too short for a Basic::report message: {:X?}",
+                    msg
+                ),
+            ));
         }
 
         // check the CommandClass and command
