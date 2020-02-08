@@ -235,7 +235,7 @@ impl Message {
 
         // check if the data has enough entries
         if data.len() < 3 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Message is to short"));
+            return Err(Error::new(ErrorKind::UnknownZWave, "Message is too short"));
         }
 
         // check if the length flag matches

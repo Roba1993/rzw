@@ -29,7 +29,7 @@ impl NodeInfo {
             // get the type fro the vector
             let m = msg
                 .get(i as usize)
-                .ok_or(Error::new(ErrorKind::UnknownZWave, "Message is to short"))?;
+                .ok_or(Error::new(ErrorKind::UnknownZWave, "Message is too short"))?;
             let m = m.clone();
 
             // when the device is unkown continue
@@ -55,7 +55,7 @@ impl NodeInfo {
             // get the command for the vector
             let m = msg
                 .get(i as usize)
-                .ok_or(Error::new(ErrorKind::UnknownZWave, "Message is to short"))?;
+                .ok_or(Error::new(ErrorKind::UnknownZWave, "Message is too short"))?;
             let m = m.clone();
 
             // try to convert the command

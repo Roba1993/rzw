@@ -45,7 +45,7 @@ impl SwitchBinary {
 
         // the message need to be exact 6 digits long
         if msg.len() != 6 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Message is to short"));
+            return Err(Error::new(ErrorKind::UnknownZWave, "Message is too short"));
         }
 
         // check the CommandClass and command
