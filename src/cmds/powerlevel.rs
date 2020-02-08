@@ -85,7 +85,7 @@ impl PowerLevel {
 
         // the message need to be exact 7 digits long
         if msg.len() != 7 {
-            return Err(Error::new(ErrorKind::UnknownZWave, "Message is to short"));
+            return Err(Error::new(ErrorKind::UnknownZWave, "Message is too short"));
         }
 
         // check the CommandClass and command
@@ -170,7 +170,7 @@ impl PowerLevel {
         if msg.len() != 9 {
             return Err(Error::new(
                 ErrorKind::UnknownZWave,
-                format!("Message is to short: {:?}", msg),
+                format!("Message is too short: {:?}", msg),
             ));
         }
 
