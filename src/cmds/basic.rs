@@ -26,7 +26,7 @@ impl Basic {
         let msg = msg.into();
 
         // the message need to be exact 6 digits long
-        if msg.len() != 6 {
+        if msg.len() >= 5 {
             return Err(Error::new(ErrorKind::UnknownZWave, "Message is too short"));
         }
 

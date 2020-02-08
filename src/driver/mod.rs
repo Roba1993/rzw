@@ -35,9 +35,9 @@ pub trait Driver {
         N: Into<u8>;
 }
 
-/// List of the generic node types
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
+/// List of the generic node types
 pub enum GenericType {
     Unknown = 0x00,
     RemoteController = 0x01,

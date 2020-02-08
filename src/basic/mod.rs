@@ -107,7 +107,7 @@ where
             .collect::<Vec<u8>>()
     }
 
-    pub fn handle_messages(&self, h: Box<Fn(SerialMsg) + Send>) {
+    pub fn handle_messages(&self, h: Box<dyn Fn(SerialMsg) + Send>) {
         let driver = self.driver.clone();
         let duration = time::Duration::from_millis(50);
 
@@ -155,7 +155,7 @@ where
         };
 
         // update the node information
-        node.update_node_info().is_ok();
+        node.update_node_info();
 
         node
     }

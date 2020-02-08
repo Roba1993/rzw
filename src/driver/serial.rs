@@ -35,20 +35,20 @@ impl SerialDriver {
         let path = path.into();
 
         // try to open the serial port
-        let mut port = try!(serial::open(&path));
+        let mut port = serial::open(&path)?;
 
         // set the settings
-        try!(port.reconfigure(&|settings| {
-            try!(settings.set_baud_rate(serial::Baud115200));
+        port.reconfigure(&|settings| {
+            settings.set_baud_rate(serial::Baud115200)?;
             settings.set_char_size(serial::Bits8);
             settings.set_parity(serial::ParityNone);
             settings.set_stop_bits(serial::Stop1);
             settings.set_flow_control(serial::FlowHardware);
             Ok(())
-        }));
+        })?;
 
         // set the timeout
-        try!(port.set_timeout(Duration::from_millis(200)));
+        port.set_timeout(Duration::from_millis(200))?;
 
         // create the new struct
         let driver = SerialDriver {
@@ -586,9 +586,9 @@ impl SerialMsg {
     }
 }
 
-/// List of the ZWave start header
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
+/// List of the ZWave start header
 pub enum SerialMsgHeader {
     SOF = 0x01, // Start of Frame
     ACK = 0x06, // Message Accepted
@@ -597,18 +597,18 @@ pub enum SerialMsgHeader {
 }
 }
 
-/// List of different ZWave command types (rx/tx)
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
+/// List of different ZWave command types (rx/tx)
 pub enum SerialMsgType {
     Request = 0x00,
     Response = 0x01,
 }
 }
 
-/// List of different ZWave transmission types
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
+/// List of different ZWave transmission types
 pub enum SerialTransmissionType {
     ACK = 0x01,
     LowPower = 0x02,
@@ -618,9 +618,9 @@ pub enum SerialTransmissionType {
 }
 }
 
-/// List of all available ZWave functions
 enum_from_primitive! {
 #[derive(Copy, Clone, Debug, PartialEq)]
+/// List of all available ZWave functions
 pub enum SerialMsgFunction {
     None = 0x00,
     DiscoveryNodes = 0x02,
