@@ -1,6 +1,6 @@
 [package]
 name = "rzw"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Robert Schütte <schuetterobert@gmail.com>"]
 description = "Rust library for controling Z-Wave networks."
 homepage = "https://github.com/Roba1993"
@@ -9,13 +9,8 @@ documentation = "https://github.com/Roba1993"
 license = "MIT"
 readme = "README.md"
 keywords = ["Z-Wave", "controller", "Home-Control"]
+edition = '2018'
 
 [dependencies]
-serial = "0.3"
-mac = "0.0.2"
-enum_primitive = "0.1.0"
-num = "0.1.32"
-
-[[bin]]
-name = "basic"
-path = "examples/01_basic.rs"
+serial = "0.4"
+num_enum = "0.4.2"

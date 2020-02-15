@@ -50,31 +50,35 @@
 // We create code lib code
 #![allow(dead_code)]
 
-// load all external dependencies, which are used
-#[macro_use]
-extern crate enum_primitive;
-extern crate num;
-extern crate serial;
-
 // load all internal dependencies, which are used
-pub mod basic;
-pub mod cmds;
+pub mod defs;
 pub mod driver;
 pub mod error;
 
-// lead mods which are used
-use basic::Controller;
-use driver::serial::SerialDriver;
-use error::Error;
-
-/// Function to start a Z-Wave Controller
-pub fn open<P>(path: P) -> Result<Controller<SerialDriver>, Error>
+pub fn open<P>(
+    path: P,
+) -> crate::error::Result<crate::driver::SerialDriver<Box<dyn serial::SerialPort>>>
 where
     P: Into<String>,
 {
-    // Generate a new Serial driver
-    let driver = SerialDriver::new(path.into())?;
+    // imports needed
+    use serial::prelude::*;
 
-    // Generate a new controller and return it
-    Controller::new(driver)
+    // open the serial port
+    let mut port = serial::open(&path.into())?;
+
+    // set the settings
+    port.reconfigure(&|settings| {
+        settings.set_baud_rate(serial::Baud115200)?;
+        settings.set_char_size(serial::Bits8);
+        settings.set_parity(serial::ParityNone);
+        settings.set_stop_bits(serial::Stop1);
+        settings.set_flow_control(serial::FlowHardware);
+        Ok(())
+    })?;
+
+    // set the timeout
+    port.set_timeout(std::time::Duration::from_millis(100))?;
+
+    Ok(crate::driver::SerialDriver::new(Box::new(port)))
 }

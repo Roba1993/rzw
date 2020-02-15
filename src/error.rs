@@ -2,11 +2,7 @@
 //!
 //! These error type is compatible with the rust standard io `ErrorKind`.
 
-use serial;
-use serial::Error as SerError;
-use std::error::Error as StdError;
-use std::fmt;
-use std::io;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Categories of errors that can occur when interacting with z-Wave.
 ///
@@ -31,17 +27,18 @@ pub enum ErrorKind {
     /// An I/O error occured.
     ///
     /// The type of I/O error is determined by the inner `io::ErrorKind`.
-    Io(io::ErrorKind),
+    Io(std::io::ErrorKind),
 }
 
 /// An error type for Z-Wave operations.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     kind: ErrorKind,
     description: String,
 }
 
 impl Error {
+    /// Create a new error with a given type and description
     pub fn new<T: Into<String>>(kind: ErrorKind, description: T) -> Self {
         Error {
             kind: kind,
@@ -55,46 +52,53 @@ impl Error {
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+impl std::fmt::Display for Error {
+    /// How to print the error
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         fmt.write_str(&self.description)
     }
 }
 
-impl StdError for Error {
+impl std::error::Error for Error {
+    /// Get the error description
     fn description(&self) -> &str {
         &self.description
     }
 }
 
-impl From<io::Error> for Error {
-    fn from(io_error: io::Error) -> Error {
+impl From<std::io::Error> for Error {
+    /// Transform std io errors to this crate error
+    fn from(io_error: std::io::Error) -> Error {
         Error::new(ErrorKind::Io(io_error.kind()), format!("{}", io_error))
     }
 }
 
-impl From<Error> for io::Error {
-    fn from(error: Error) -> io::Error {
+impl From<Error> for std::io::Error {
+    /// Transform this error to a std io error
+    fn from(error: Error) -> std::io::Error {
         let kind = match error.kind {
-            ErrorKind::NoController => io::ErrorKind::NotFound,
-            ErrorKind::InvalidInput => io::ErrorKind::InvalidInput,
-            ErrorKind::UnknownZWave => io::ErrorKind::InvalidData,
-            ErrorKind::NotImplemented => io::ErrorKind::Other,
+            ErrorKind::NoController => std::io::ErrorKind::NotFound,
+            ErrorKind::InvalidInput => std::io::ErrorKind::InvalidInput,
+            ErrorKind::UnknownZWave => std::io::ErrorKind::InvalidData,
+            ErrorKind::NotImplemented => std::io::ErrorKind::Other,
             ErrorKind::Io(kind) => kind,
         };
 
-        io::Error::new(kind, error.description)
+        std::io::Error::new(kind, error.description)
     }
 }
 
-impl From<SerError> for Error {
-    fn from(ser_error: SerError) -> Error {
+impl From<serial::Error> for Error {
+    /// Transform from a serial error
+    fn from(ser_error: serial::Error) -> Error {
+        use std::error::Error;
+
         let kind = match ser_error.kind() {
             serial::ErrorKind::NoDevice => ErrorKind::NoController,
             serial::ErrorKind::InvalidInput => ErrorKind::InvalidInput,
             serial::ErrorKind::Io(kind) => ErrorKind::Io(kind),
         };
 
-        Error::new(kind, ser_error.description())
+        crate::error::Error::new(kind, ser_error.description())
     }
 }
